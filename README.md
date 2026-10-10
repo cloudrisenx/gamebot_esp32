@@ -16,11 +16,12 @@ di perangkat ada di [`RIWAYAT_PENGEMBANGAN.md`](RIWAYAT_PENGEMBANGAN.md).
 |---|---|
 | Mikrokontroler | ESP32-C3 (board `esp32-c3-devkitm-1`), CPU 80 MHz, flash 4 MB |
 | Layar | OLED SSD1306 128x64, I2C alamat `0x3C`, SDA = GPIO 4, SCL = GPIO 5 |
-| Tombol | 4 tombol aktif LOW (pull-up internal): UP = GPIO 3, DOWN = GPIO 1, OK = GPIO 10, BACK = GPIO 6 |
-| Bangun dari deep sleep | tombol UP / DOWN |
+| Tombol | 4 tombol aktif LOW (pull-up internal), urutan fisik kiri → kanan: **L (kiri)** = GPIO 3, **R (kanan)** = GPIO 1, **OK** = GPIO 10, **BACK** = GPIO 6 |
+| Bangun dari deep sleep | tombol L / R |
 
-Tombol UP/DOWN letaknya **kiri/kanan** secara fisik (urutan kiri → kanan: UP, DOWN, OK, BACK); di layar selalu
-disebut "kiri/kanan". Arah dapat dibalik lewat `MENU_SWAP_LR` / `PORTRAIT_SWAP_LR` di [`src/screen.h`](src/screen.h).
+Arah L/R dapat dibalik lewat `MENU_SWAP_LR` / `PORTRAIT_SWAP_LR` di [`src/screen.h`](src/screen.h).
+Catatan untuk kode: di [`src/buttons.h`](src/buttons.h) tombol L/R masih bernama `BTN_UP` / `BTN_DOWN`
+(nama lama), dan konstanta deep sleep `WAKE_PIN_UP` / `WAKE_PIN_DOWN`.
 
 ## Perangkat lunak yang dipakai
 
