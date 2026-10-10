@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>cute_device Update</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1d2330;--mute:#6b7280;--acc:#2563eb;--ok:#15803d;--err:#b91c1c;--line:#d8dce3}
+@media(prefers-color-scheme:dark){:root{--bg:#111318;--card:#1b1f27;--fg:#e8eaee;--mute:#9aa3b2;--acc:#60a5fa;--ok:#4ade80;--err:#f87171;--line:#2d3340}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+main{max-width:440px;margin:0 auto;padding:12px 16px 32px}
+.tip{font-size:12px;color:var(--mute);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+h1{font-size:20px;margin:14px 0}
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:var(--card)}
+.drop b{display:block;font-size:17px;color:var(--acc)}
+.drop small{color:var(--mute)}
+.drop input{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px}
+canvas{display:block;width:100%;max-width:384px;margin:0 auto;image-rendering:pixelated;background:#000;border-radius:4px}
+canvas.portrait{width:auto;height:384px;max-height:60vh}
+.row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.row label{min-width:78px}
+.row input[type=range]{flex:1}
+.row output{min-width:52px;text-align:right;color:var(--mute)}
+.chk{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
+select{font:inherit;padding:4px;border-radius:6px}
+#info{color:var(--mute);margin:10px 0 0}
+video{display:block;width:100%;max-height:40vh;background:#000;border-radius:6px}
+button.mini{width:auto;margin:0;padding:4px 10px;font-size:13px;font-weight:500}
+button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px;width:100%;margin-top:12px;background:var(--acc);color:#fff}
+button:disabled{opacity:.4}
+button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+.bar{height:8px;background:var(--line);border-radius:4px;margin-top:12px;overflow:hidden}
+.bar div{height:100%;width:0;background:var(--acc);transition:width .2s}
+#msg{margin-top:12px;min-height:1.4em}
+.ok{color:var(--ok)}.err{color:var(--err)}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:8px;margin-bottom:12px}
+.tabs button{margin:0;flex:1;background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.warn{color:#b45309}
+.kv{margin:0;color:var(--mute)}.kv b{color:var(--fg)}
+</style></head>
+<body><main>
+<div class="tip">Halaman tidak terbuka? Matikan data seluler, lalu buka <b>http://192.168.4.1</b><br>Tidak bisa memilih file? Buka di Chrome/Safari.</div>
+<h1>cute_device Update</h1>
+<nav class="tabs"><button id="tabA" class="on">Animasi</button><button id="tabF">Firmware</button></nav>
+
+<div id="paneA">
+<label class="drop"><input type="file" id="file" multiple
+ accept=".gif,.mp4,.webm,.mov,.png,.jpg,.jpeg,.bmp,.bin,image/*,video/*">
+<b>Pilih animasi</b><small>GIF · MP4 · PNG/JPG · frames.bin</small></label>
+
+<section class="card" id="trim" hidden>
+<video id="vid" muted playsinline controls preload="auto"></video>
+<div class="row"><label>Mulai</label><input type="range" id="tS" min="0" step="0.1" value="0"><output id="tSO"></output><button class="sec mini" id="tSHere">di sini</button></div>
+<div class="row"><label>Selesai</label><input type="range" id="tE" min="0" step="0.1" value="0"><output id="tEO"></output><button class="sec mini" id="tEHere">di sini</button></div>
+<p class="kv" id="clipInfo" style="margin-top:10px"></p>
+<button id="grabBtn">Ambil frame</button>
+</section>
+
+<section class="card" id="anim" hidden>
+<canvas id="pv" width="128" height="64"></canvas>
+<div id="opts">
+<div class="row"><label>Kecepatan</label><input type="range" id="fps" min="1" max="30" value="15"><output id="fpsO"></output></div>
+<div class="row" id="thrRow"><label>Ambang</label><input type="range" id="thr" min="0" max="255" value="128"><output id="thrO"></output></div>
+<div class="row"><label>Orientasi</label><select id="orient"><option value="land">Landscape 128x64</option><option value="port">Potret 64x128</option></select></div>
+<div class="row"><label>Ukuran</label><select id="fit"><option value="contain">Pas (bingkai hitam)</option><option value="crop">Penuh (potong)</option><option value="stretch">Tarik</option></select></div>
+<div class="chk"><label><input type="checkbox" id="dither"> Dither</label><label><input type="checkbox" id="inv"> Balik warna</label></div>
+</div>
+<p id="info"></p>
+<button class="sec" id="skip" hidden>Lewati frame</button>
+</section>
+
+<button class="sec" id="toFw" hidden>Buka tab Firmware</button>
+<button id="send" disabled>Kirim animasi</button>
+<div class="bar"><div id="prog"></div></div>
+<div id="msg"></div>
+</div>
+
+<div id="paneF" hidden>
+<section class="card"><p class="kv">Versi sekarang: <b id="fwNow">memuat...</b></p></section>
+<label class="drop" style="margin-top:12px"><input type="file" id="fwFile" accept=".bin">
+<b>Pilih firmware</b><small>firmware_ota.bin (dari folder proyek)</small></label>
+<section class="card" id="fwCard" hidden>
+<p class="kv">File: <b id="fwName"></b></p>
+<p class="kv">Versi file: <b id="fwVer"></b></p>
+</section>
+<button id="fwSend" disabled>Update firmware</button>
+<div class="bar"><div id="fwProg"></div></div>
+<div id="fwMsg"></div>
+</div>
+</main>
+
+<script>
+// ===== Fungsi murni: dipakai halaman ini & diuji di Node (tools/test_web_converter.mjs) =====
+var W = 128, H = 64, FB = 1024, MAXF = 895;
+// FRM2 (berkompresi): kapasitas ditentukan ukuran hasil kompresi; jumlah frame dibatasi MAXF2
+var PART_BYTES = 0xE0000, MAXF2 = 3600, KEY_EVERY = 30;
+// Ukuran frame per orientasi; ukuran byte per frame sama (1024)
+var DIMS = { land: [128, 64], port: [64, 128] };
+
+var CRC_T = (function () {
+  var t = new Uint32Array(256);
+  for (var n = 0; n < 256; n++) {
+    var c = n;
+    for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+// CRC32 standar (sama dengan zlib.crc32)
+function crc32(buf) {
+  var c = 0xFFFFFFFF;
+  for (var i = 0; i < buf.length; i++) c = CRC_T[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+// frames.bin: header 16 byte <"FRM1", u16 count, u8 lebar, u8 tinggi, u8 fps, 3x0, u32 crc> + data
+// lebar x tinggi = 128x64 (landscape) atau 64x128 (potret)
+function packFrames(bitmaps, fps, w, h) {
+  w = w || W; h = h || H;
+  var out = new Uint8Array(16 + bitmaps.length * FB);
+  for (var i = 0; i < bitmaps.length; i++) out.set(bitmaps[i], 16 + i * FB);
+  var dv = new DataView(out.buffer);
+  out.set([70, 82, 77, 49], 0);  // "FRM1"
+  dv.setUint16(4, bitmaps.length, true);
+  out[6] = w; out[7] = h; out[8] = fps;
+  dv.setUint32(12, crc32(out.subarray(16)), true);
+  return out;
+}
+
+// Cek frames.bin; mengembalikan {count,fps,w,h,bitmaps} atau pesan error (string)
+function parseFramesBin(u8) {
+  if (u8.length >= 16 && String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) === 'FRM2') return unpackFrames2(u8);
+  if (u8.length < 16 || String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== 'FRM1') return 'Bukan frames.bin';
+  var dv = new DataView(u8.buffer, u8.byteOffset, u8.length);
+  var count = dv.getUint16(4, true), fps = u8[8];
+  var w = u8[6], h = u8[7];
+  if (!((w === 128 && h === 64) || (w === 64 && h === 128)) || !count || !fps) return 'Header frames.bin tidak valid';
+  if (count > MAXF) return 'Terlalu banyak frame (' + count + ' > ' + MAXF + ')';
+  if (u8.length !== 16 + count * FB) return 'Ukuran file tidak cocok dengan header';
+  if (crc32(u8.subarray(16)) !== dv.getUint32(12, true)) return 'CRC tidak cocok (file rusak)';
+  var bitmaps = [];
+  for (var i = 0; i < count; i++) bitmaps.push(u8.subarray(16 + i * FB, 16 + (i + 1) * FB));
+  return { count: count, fps: fps, w: w, h: h, bitmaps: bitmaps };
+}
+
+// ===== FRM2: frames.bin berkompresi (dibaca firmware >= 1.8.2) =====
+// Header 16 byte sama dengan FRM1, magic "FRM2", byte 9..11 = panjang data (24-bit LE), crc = CRC32 data.
+// Data: tabel offset u32 LE per frame (relatif awal data), lalu tiap frame = 1 byte tipe + isi:
+//   0 = 1024 byte mentah; 1 = RLE bitmap; 2 = RLE (bitmap XOR frame sebelumnya).
+//   Frame kelipatan KEY_EVERY (termasuk 0) selalu tipe 0/1 (keyframe untuk lompat/loop).
+// RLE: kontrol c < 128 -> c+1 byte literal menyusul; c >= 128 -> byte berikut diulang c-125 kali (3..130).
+function rleEncode(src) {
+  var out = [], lit = [], i = 0, n = src.length;
+  function flush() {
+    for (var a = 0; a < lit.length; a += 128) {
+      var k = Math.min(128, lit.length - a);
+      out.push(k - 1);
+      for (var j = 0; j < k; j++) out.push(lit[a + j]);
+    }
+    lit = [];
+  }
+  while (i < n) {
+    var r = 1;
+    while (i + r < n && src[i + r] === src[i] && r < 130) r++;
+    if (r >= 3) { flush(); out.push(r + 125, src[i]); i += r; } else { lit.push(src[i]); i++; }
+  }
+  flush();
+  return out;
+}
+
+// Decode RLE ke dst (1024 byte); xor = gabung dengan isi dst. true bila tepat 1024 byte & tepat habis di end
+function rleDecode(src, pos, end, dst, xor) {
+  var o = 0;
+  while (pos < end) {
+    var c = src[pos++];
+    if (c < 128) {
+      var k = c + 1;
+      if (pos + k > end || o + k > FB) return false;
+      for (var j = 0; j < k; j++) { var v = src[pos++]; dst[o] = xor ? dst[o] ^ v : v; o++; }
+    } else {
+      var r = c - 125;
+      if (pos >= end || o + r > FB) return false;
+      var b = src[pos++];
+      for (var j2 = 0; j2 < r; j2++) { dst[o] = xor ? dst[o] ^ b : b; o++; }
+    }
+  }
+  return o === FB;
+}
+
+function packFrames2(bitmaps, fps, w, h) {
+  w = w || W; h = h || H;
+  var n = bitmaps.length, parts = [], total = n * 4;
+  for (var i = 0; i < n; i++) {
+    var bm = bitmaps[i], best = [0].concat(Array.prototype.slice.call(bm));
+    var r1 = rleEncode(bm);
+    if (r1.length + 1 < best.length) best = [1].concat(r1);
+    if (i % KEY_EVERY) {
+      var prev = bitmaps[i - 1], x = new Uint8Array(FB);
+      for (var k = 0; k < FB; k++) x[k] = bm[k] ^ prev[k];
+      var r2 = rleEncode(x);
+      if (r2.length + 1 < best.length) best = [2].concat(r2);
+    }
+    parts.push(best);
+    total += best.length;
+  }
+  var out = new Uint8Array(16 + total), dv = new DataView(out.buffer), off = n * 4;
+  for (var f = 0; f < n; f++) {
+    dv.setUint32(16 + f * 4, off, true);
+    out.set(parts[f], 16 + off);
+    off += parts[f].length;
+  }
+  out.set([70, 82, 77, 50], 0);  // "FRM2"
+  dv.setUint16(4, n, true);
+  out[6] = w; out[7] = h; out[8] = fps;
+  out[9] = total & 255; out[10] = (total >> 8) & 255; out[11] = (total >> 16) & 255;
+  dv.setUint32(12, crc32(out.subarray(16)), true);
+  return out;
+}
+
+// Kebalikan packFrames2 (validasi sama dengan firmware); {count,fps,w,h,bitmaps} atau pesan error
+function unpackFrames2(u8) {
+  if (u8.length < 16 || String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== 'FRM2') return 'Bukan frames.bin FRM2';
+  var dv = new DataView(u8.buffer, u8.byteOffset, u8.length);
+  var count = dv.getUint16(4, true), w = u8[6], h = u8[7], fps = u8[8];
+  var len = u8[9] | (u8[10] << 8) | (u8[11] << 16);
+  if (!((w === 128 && h === 64) || (w === 64 && h === 128)) || !count || !fps) return 'Header frames.bin tidak valid';
+  if (u8.length !== 16 + len || 16 + len > PART_BYTES || len < count * 5) return 'Ukuran file tidak cocok dengan header';
+  if (crc32(u8.subarray(16)) !== dv.getUint32(12, true)) return 'CRC tidak cocok (file rusak)';
+  var data = u8.subarray(16), bitmaps = [], cur = new Uint8Array(FB);
+  for (var i = 0; i < count; i++) {
+    var start = dv.getUint32(16 + i * 4, true), end = i + 1 < count ? dv.getUint32(16 + (i + 1) * 4, true) : len;
+    if (start < count * 4 || end <= start || end > len) return 'Tabel frame rusak';
+    var type = data[start], ok;
+    if (type === 0) { ok = end - start === FB + 1; if (ok) cur.set(data.subarray(start + 1, end)); }
+    else if (type === 1) ok = rleDecode(data, start + 1, end, cur, false);
+    else if (type === 2 && i % KEY_EVERY) ok = rleDecode(data, start + 1, end, cur, true);
+    else ok = false;
+    if (!ok) return 'Frame ' + i + ' rusak';
+    bitmaps.push(Uint8Array.from(cur));
+  }
+  return { count: count, fps: fps, w: w, h: h, bitmaps: bitmaps };
+}
+
+// Grayscale w x h -> bitmap 1024 byte (baris demi baris, MSB = kiri, 1 = putih)
+function toMono(gray, threshold, dither, invert, w, h) {
+  w = w || W; h = h || H;
+  var g = new Float32Array(w * h), out = new Uint8Array(w * h / 8), x, y, i;
+  for (i = 0; i < w * h; i++) g[i] = invert ? 255 - gray[i] : gray[i];
+  for (y = 0; y < h; y++) for (x = 0; x < w; x++) {
+    i = y * w + x;
+    var on = g[i] >= (dither ? 128 : threshold);
+    if (dither) {  // Floyd-Steinberg
+      var e = g[i] - (on ? 255 : 0);
+      if (x + 1 < w) g[i + 1] += e * 7 / 16;
+      if (y + 1 < h) {
+        if (x > 0) g[i + w - 1] += e * 3 / 16;
+        g[i + w] += e * 5 / 16;
+        if (x + 1 < w) g[i + w + 1] += e / 16;
+      }
+    }
+    if (on) out[i >> 3] |= 0x80 >> (x & 7);
+  }
+  return out;
+}
+
+// Skala area-average grayscale (sw x sh) ke tw x th sesuai mode fit, latar hitam
+function fitGray(src, sw, sh, fit, tw, th) {
+  tw = tw || W; th = th || H;
+  var out = new Uint8Array(tw * th), dx = 0, dy = 0, dw = tw, dh = th, sx = 0, sy = 0, cw = sw, ch = sh;
+  if (fit === 'contain') {
+    var s = Math.min(tw / sw, th / sh);
+    dw = Math.max(1, Math.round(sw * s)); dh = Math.max(1, Math.round(sh * s));
+    dx = (tw - dw) >> 1; dy = (th - dh) >> 1;
+  } else if (fit === 'crop') {
+    var r = Math.max(tw / sw, th / sh);
+    cw = tw / r; ch = th / r; sx = (sw - cw) / 2; sy = (sh - ch) / 2;
+  }
+  var fx = cw / dw, fy = ch / dh;
+  for (var y = 0; y < dh; y++) {
+    var y0 = sy + y * fy, y1 = y0 + fy;
+    for (var x = 0; x < dw; x++) {
+      var x0 = sx + x * fx, x1 = x0 + fx, sum = 0, area = 0;
+      for (var yy = Math.floor(y0); yy < Math.ceil(y1); yy++) {
+        var wy = Math.min(y1, yy + 1) - Math.max(y0, yy);
+        if (wy <= 0 || yy >= sh) continue;
+        for (var xx = Math.floor(x0); xx < Math.ceil(x1); xx++) {
+          var wx = Math.min(x1, xx + 1) - Math.max(x0, xx);
+          if (wx <= 0 || xx >= sw) continue;
+          sum += src[yy * sw + xx] * wx * wy; area += wx * wy;
+        }
+      }
+      out[(dy + y) * tw + dx + x] = area ? Math.round(sum / area) : 0;
+    }
+  }
+  return out;
+}
+
+// RGBA -> grayscale (ITU-R 601, seperti Pillow "L"), alpha dikomposit ke hitam
+function rgbaToGray(rgba, n) {
+  var g = new Uint8Array(n);
+  for (var i = 0; i < n; i++) {
+    var p = i * 4, a = rgba[p + 3] / 255;
+    g[i] = Math.round((rgba[p] * 299 + rgba[p + 1] * 587 + rgba[p + 2] * 114) / 1000 * a);
+  }
+  return g;
+}
+
+function lzw(minSize, data, npix) {
+  var out = new Uint8Array(npix), clear = 1 << minSize, eoi = clear + 1;
+  var prefix = new Int16Array(4096), suffix = new Uint8Array(4096), stack = new Uint8Array(4097);
+  for (var i = 0; i < clear; i++) suffix[i] = i;
+  var size = minSize + 1, mask = (1 << size) - 1, next = eoi + 1, old = -1, first = 0;
+  var cur = 0, bits = 0, p = 0, op = 0;
+  while (op < npix) {
+    while (bits < size) { if (p >= data.length) return out; cur |= data[p++] << bits; bits += 8; }
+    var code = cur & mask; cur >>>= size; bits -= size;
+    if (code === clear) { size = minSize + 1; mask = (1 << size) - 1; next = eoi + 1; old = -1; continue; }
+    if (code === eoi) break;
+    if (old === -1) { out[op++] = suffix[code]; old = first = code; continue; }
+    var inCode = code, sp = 0;
+    if (code >= next) { stack[sp++] = first; code = old; }
+    while (code >= clear) { stack[sp++] = suffix[code]; code = prefix[code]; }
+    first = suffix[code]; stack[sp++] = first;
+    if (next < 4096) {
+      prefix[next] = old; suffix[next] = first; next++;
+      if (next === 1 << size && size < 12) { size++; mask = (1 << size) - 1; }
+    }
+    old = inCode;
+    while (sp > 0 && op < npix) out[op++] = stack[--sp];
+  }
+  return out;
+}
+
+// Decoder GIF: memanggil onFrame(rgba kanvas penuh, delayMs, width, height) per frame setelah komposit.
+// rgba dipakai ulang antar frame — salin jika perlu disimpan. Mengembalikan {width,height,count}.
+function decodeGif(buf, onFrame) {
+  var u = new Uint8Array(buf), p = 0;
+  function u16() { var v = u[p] | (u[p + 1] << 8); p += 2; return v; }
+  function blocks() {
+    var parts = [], len = 0;
+    for (var n = u[p++]; n; n = u[p++]) { parts.push(u.subarray(p, p + n)); len += n; p += n; }
+    var d = new Uint8Array(len), o = 0;
+    parts.forEach(function (b) { d.set(b, o); o += b.length; });
+    return d;
+  }
+  if (String.fromCharCode(u[0], u[1], u[2]) !== 'GIF') throw new Error('Bukan file GIF');
+  p = 6;
+  var w = u16(), h = u16(), flags = u[p++];
+  p += 2;
+  var gct = null;
+  if (flags & 0x80) { var gn = 3 << ((flags & 7) + 1); gct = u.subarray(p, p + gn); p += gn; }
+  var canvas = new Uint8ClampedArray(w * h * 4), saved = null;
+  var disposal = 0, trans = -1, delay = 100, count = 0, prev = null;
+  while (p < u.length) {
+    var b = u[p++];
+    if (b === 0x3B) break;
+    if (b === 0x21) {
+      var label = u[p++];
+      if (label === 0xF9) {
+        var gce = blocks();
+        disposal = (gce[0] >> 2) & 7;
+        trans = gce[0] & 1 ? gce[3] : -1;
+        delay = ((gce[1] | (gce[2] << 8)) * 10) || 100;
+      } else blocks();
+      continue;
+    }
+    if (b !== 0x2C) break;
+    var fx = u16(), fy = u16(), fw = u16(), fh = u16(), ff = u[p++], pal = gct;
+    if (ff & 0x80) { var ln = 3 << ((ff & 7) + 1); pal = u.subarray(p, p + ln); p += ln; }
+    var minSize = u[p++];
+    var px = lzw(minSize, blocks(), fw * fh);
+
+    // Terapkan disposal frame sebelumnya
+    if (prev) {
+      if (prev.disposal === 2) {
+        for (var yy = prev.y; yy < prev.y + prev.h && yy < h; yy++)
+          for (var xx = prev.x; xx < prev.x + prev.w && xx < w; xx++) canvas.fill(0, (yy * w + xx) * 4, (yy * w + xx) * 4 + 4);
+      } else if (prev.disposal === 3 && saved) canvas.set(saved);
+    }
+    saved = disposal === 3 ? canvas.slice() : null;
+
+    var rows = [];
+    if (ff & 0x40) {  // interlaced
+      [[0, 8], [4, 8], [2, 4], [1, 2]].forEach(function (s) { for (var r = s[0]; r < fh; r += s[1]) rows.push(r); });
+    } else for (var r = 0; r < fh; r++) rows.push(r);
+    for (var i = 0; i < fh; i++) {
+      var cy = fy + rows[i];
+      if (cy >= h) continue;
+      for (var j = 0; j < fw; j++) {
+        var cx = fx + j, idx = px[i * fw + j];
+        if (cx >= w || idx === trans || !pal) continue;
+        var o = (cy * w + cx) * 4;
+        canvas[o] = pal[idx * 3]; canvas[o + 1] = pal[idx * 3 + 1]; canvas[o + 2] = pal[idx * 3 + 2]; canvas[o + 3] = 255;
+      }
+    }
+    onFrame(canvas, delay, w, h);
+    count++;
+    prev = { disposal: disposal, x: fx, y: fy, w: fw, h: fh };
+    disposal = 0; trans = -1; delay = 100;
+  }
+  return { width: w, height: h, count: count };
+}
+
+// Cek image firmware: magic 0xE9, chip id (uint16 LE, offset 12) harus 5 = ESP32-C3,
+// versi dari penanda FW_TAG (lihat src/main.cpp) yang ditanam di firmware (null jika tidak ada).
+// Penanda ditulis sebagai kode byte, bukan teks, karena halaman ini ikut ter-embed di firmware;
+// versi juga wajib diawali angka agar teks lain yang kebetulan mirip tidak terbaca.
+function parseFirmwareInfo(u8) {
+  if (u8.length < 24 || u8[0] !== 0xE9) return { ok: false, chipId: null, version: null, error: 'Bukan file firmware ESP32' };
+  var chipId = u8[12] | (u8[13] << 8);
+  if (chipId !== 5) return { ok: false, chipId: chipId, version: null, error: 'Bukan firmware ESP32-C3 (chip id ' + chipId + ')' };
+  var tag = [70, 87, 86, 69, 82, 58], version = null;  // F W V E R :
+  for (var i = 0; i + tag.length < u8.length && version === null; i++) {
+    if (u8[i] !== 70) continue;
+    var k = 1;
+    while (k < tag.length && u8[i + k] === tag[k]) k++;
+    if (k < tag.length) continue;
+    var v = '', j = i + tag.length;
+    while (j < u8.length && u8[j] !== 59 && u8[j] >= 32 && u8[j] < 127 && v.length < 32) v += String.fromCharCode(u8[j++]);
+    if (u8[j] === 59 && /^[0-9]/.test(v)) version = v;
+  }
+  return { ok: true, chipId: chipId, version: version, error: null };
+}
+
+// Rentang potongan video (detik, dibulatkan 0,1): start < end <= duration,
+// jumlah frame dibatasi maxFrames (end dipendekkan, clamped = true).
+function clipRange(duration, start, end, fps, maxFrames) {
+  var r = function (x) { return Math.round(x * 10) / 10; };
+  var d = Math.max(0, duration);
+  var s = Math.min(Math.max(0, r(start)), Math.max(0, d - 0.1));
+  var e = Math.min(Math.max(r(end), s + 0.1), d);
+  var frames = Math.max(1, Math.floor((e - s) * fps + 1e-6)), clamped = false;
+  if (frames > maxFrames) { e = s + maxFrames / fps; frames = maxFrames; clamped = true; }
+  return { start: s, end: e, frames: frames, clamped: clamped };
+}
+
+function natCmp(a, b) { return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }); }
+
+if (typeof module !== 'undefined') module.exports = { crc32: crc32, packFrames: packFrames, packFrames2: packFrames2, unpackFrames2: unpackFrames2, rleEncode: rleEncode, rleDecode: rleDecode, parseFramesBin: parseFramesBin, toMono: toMono, fitGray: fitGray, DIMS: DIMS, rgbaToGray: rgbaToGray, decodeGif: decodeGif, natCmp: natCmp, parseFirmwareInfo: parseFirmwareInfo, clipRange: clipRange };
+</script>
+
+<script>
+// ===== UI (hanya browser) =====
+if (typeof document !== 'undefined') (function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var S = null;           // {kind:'src'|'bin', src:[{g,w,h}], file, mono:[]}
+  var fitCache = {}, playTimer = 0, frameIdx = 0, rebuildTimer = 0;
+  var hasVideo = false, videoURL = null, extractToken = 0, extracting = false;
+  var pv = $('pv').getContext('2d');
+  function dims() { return S && S.kind === 'bin' ? [S.w, S.h] : DIMS[$('orient').value]; }
+  var work = document.createElement('canvas'), wctx = work.getContext('2d', { willReadFrequently: true });
+
+  function msg(t, cls) { $('msg').textContent = t; $('msg').className = cls || ''; }
+  function setProg(p) { $('prog').style.width = p + '%'; }
+
+  // Gambar sumber ke ukuran kecil yang cukup untuk kedua orientasi (sisi pendek ≥128 px
+  // bila sumbernya sebesar itu), lalu simpan sebagai grayscale
+  function grab(el, sw, sh) {
+    var s = Math.min(1, Math.max(128 / sw, 128 / sh));
+    var cw = Math.max(1, Math.round(sw * s)), ch = Math.max(1, Math.round(sh * s));
+    work.width = cw; work.height = ch;
+    wctx.fillStyle = '#000'; wctx.fillRect(0, 0, cw, ch);
+    wctx.drawImage(el, 0, 0, cw, ch);
+    return { g: rgbaToGray(wctx.getImageData(0, 0, cw, ch).data, cw * ch), w: cw, h: ch };
+  }
+
+  function loadImg(file) {
+    return new Promise(function (ok, fail) {
+      var img = new Image();
+      img.onload = function () { ok(img); };
+      img.onerror = function () { fail(new Error('Gagal membaca ' + file.name)); };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function once(el, ev) { return new Promise(function (ok) { el.addEventListener(ev, ok, { once: true }); }); }
+
+  async function loadGif(file) {
+    var full = document.createElement('canvas'), fctx = full.getContext('2d'), src = [], delays = [];
+    decodeGif(await file.arrayBuffer(), function (rgba, delay, w, h) {
+      if (full.width !== w || full.height !== h) { full.width = w; full.height = h; }
+      fctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), w, h), 0, 0);
+      src.push(grab(full, w, h));
+      delays.push(delay);
+    });
+    var avg = delays.reduce(function (a, b) { return a + b; }, 0) / delays.length;
+    return { src: src, fps: Math.max(1, Math.min(30, Math.round(1000 / avg))) };
+  }
+
+  // Seperti once(), tapi tetap lanjut setelah ms (mis. 'seeked' tidak muncul saat posisi sama)
+  function onceT(el, ev, ms) {
+    return Promise.race([once(el, ev), new Promise(function (ok) { setTimeout(ok, ms); })]);
+  }
+
+  function fmtSec(x) { return x.toFixed(1).replace('.', ',') + ' dtk'; }
+
+  function clip() { var v = $('vid'); return clipRange(v.duration || 0, +$('tS').value, +$('tE').value, +$('fps').value, MAXF2); }
+
+  function updateClip() {
+    var c = clip();
+    if (c.clamped) $('tE').value = c.end.toFixed(1);
+    $('tSO').textContent = fmtSec(c.start);
+    $('tEO').textContent = fmtSec(c.end);
+    $('clipInfo').textContent = 'Klip ' + fmtSec(c.end - c.start) + ' · ' + c.frames + ' frame · ' +
+      'kapasitas dihitung setelah kompresi' + (c.clamped ? ' — dipotong ke maks ' + MAXF2 + ' frame' : '');
+  }
+
+  // Ambil frame hanya dari rentang [mulai, selesai). Ekstraksi baru membatalkan yang lama.
+  async function extractClip() {
+    var token = ++extractToken, v = $('vid'), fps = +$('fps').value, c = clip(), src = [];
+    extracting = true;
+    stopPlay();
+    $('grabBtn').disabled = $('send').disabled = true;
+    v.pause();
+    for (var i = 0; i < c.frames; i++) {
+      v.currentTime = Math.min(v.duration - 0.001, c.start + i / fps);
+      await onceT(v, 'seeked', 1500);
+      if (token !== extractToken) return;  // dibatalkan oleh ekstraksi/file baru
+      src.push(grab(v, v.videoWidth, v.videoHeight));
+      if (i % 5 === 0) msg('Mengambil frame ' + (i + 1) + '/' + c.frames + '...');
+    }
+    extracting = false;
+    $('grabBtn').disabled = false;
+    v.currentTime = c.start;
+    S = { kind: 'src', src: src, mono: [] };
+    fitCache = {};
+    showOpts('src');
+    syncLabels();
+    msg('');
+    rebuild();
+  }
+
+  async function openVideo(file) {
+    var v = $('vid');
+    videoURL = URL.createObjectURL(file);
+    v.src = videoURL;
+    await onceT(v, 'loadeddata', 10000);
+    if (!isFinite(v.duration) || !v.duration) throw new Error('Video tidak bisa dibaca di browser ini');
+    var max = (Math.floor(v.duration * 10) / 10).toFixed(1);
+    $('tS').max = $('tE').max = max;
+    $('tS').value = 0;
+    $('tE').value = Math.min(v.duration, 10).toFixed(1);
+    hasVideo = true;
+    $('trim').hidden = false;
+    updateClip();
+    await extractClip();
+  }
+
+  function closeVideo() {
+    extractToken++;  // batalkan ekstraksi yang berjalan
+    extracting = false;
+    hasVideo = false;
+    $('trim').hidden = true;
+    $('grabBtn').disabled = false;
+    var v = $('vid');
+    v.pause();
+    v.removeAttribute('src');
+    v.load();
+    if (videoURL) { URL.revokeObjectURL(videoURL); videoURL = null; }
+  }
+
+  function stopPlay() { clearInterval(playTimer); playTimer = 0; }
+
+  function play() {
+    stopPlay();
+    frameIdx = 0;
+    if (!S || !S.mono.length) return;
+    var wh = dims(), pw = wh[0], ph = wh[1];
+    var cv = $('pv');
+    if (cv.width !== pw) { cv.width = pw; cv.height = ph; }
+    cv.className = pw < ph ? 'portrait' : '';
+    var pvImg = pv.createImageData(pw, ph);
+    var draw = function () {
+      var bm = S.mono[frameIdx % S.mono.length], d = pvImg.data;
+      for (var i = 0; i < pw * ph; i++) {
+        var v = bm[i >> 3] & (0x80 >> (i & 7)) ? 255 : 0;
+        d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255;
+      }
+      pv.putImageData(pvImg, 0, 0);
+      frameIdx++;
+    };
+    draw();
+    playTimer = setInterval(draw, 1000 / +$('fps').value);
+  }
+
+  // Ukuran yang benar-benar dikirim: FRM2 hasil kompresi (atau file .bin apa adanya)
+  function skipFactor(n, bytes) { return Math.ceil(Math.max(n / MAXF2, bytes / PART_BYTES)); }
+
+  function updateInfo() {
+    var wh = dims(), n = S.mono.length;
+    if (S.kind !== 'bin') S.packed = packFrames2(S.mono, +$('fps').value, wh[0], wh[1]);
+    var bytes = S.kind === 'bin' ? S.file.size : S.packed.length;
+    var pct = Math.ceil(bytes * 100 / PART_BYTES), ratio = (16 + n * FB) / bytes;
+    $('info').textContent = n + ' frame · ' + pct + '% kapasitas · ' + (n / +$('fps').value).toFixed(1) + ' dtk · rasio kompresi ' +
+      ratio.toFixed(1).replace('.', ',') + '×';
+    var over = bytes > PART_BYTES || n > MAXF2;
+    $('skip').hidden = !over;
+    if (over) {
+      var k = skipFactor(n, bytes);
+      $('skip').textContent = 'Lewati frame (ambil tiap ke-' + k + ' → ' + Math.ceil(n / k) + ' frame)';
+      msg(n > MAXF2 ? 'Terlalu banyak frame: maksimal ' + MAXF2 + '.' : 'Terlalu besar setelah kompresi (' + pct + '% kapasitas). Pendekkan klip atau matikan dither.', 'err');
+    }
+    $('send').disabled = over;
+  }
+
+  function rebuild() {
+    if (!S || S.kind !== 'src') return;
+    var fit = $('fit').value, thr = +$('thr').value, dither = $('dither').checked, inv = $('inv').checked;
+    var wh = dims(), key = fit + wh[0];
+    if (!fitCache[key]) fitCache[key] = S.src.map(function (f) { return fitGray(f.g, f.w, f.h, fit, wh[0], wh[1]); });
+    S.mono = fitCache[key].map(function (g) { return toMono(g, thr, dither, inv, wh[0], wh[1]); });
+    updateInfo();
+    play();
+  }
+  function rebuildSoon() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(rebuild, 120); }
+
+  function showOpts(kind) {
+    $('anim').hidden = false;
+    $('opts').querySelectorAll('input,select').forEach(function (el) { el.disabled = kind === 'bin' && el.id !== 'fps'; });
+    $('fps').disabled = kind === 'bin';
+  }
+
+  function syncLabels() {
+    $('fpsO').textContent = $('fps').value + ' fps';
+    $('thrO').textContent = $('dither').checked ? 'dither' : $('thr').value;
+    $('thr').disabled = $('dither').checked || (S && S.kind === 'bin');
+  }
+
+  async function onFiles(files) {
+    files = Array.prototype.slice.call(files);
+    if (!files.length) return;
+    stopPlay(); setProg(0); fitCache = {}; S = null;
+    closeVideo();
+    $('send').disabled = true;
+    $('toFw').hidden = true;
+    var f0 = files[0], name = f0.name.toLowerCase(), type = f0.type || '';
+    try {
+      msg('Memproses...');
+      if (name.endsWith('.bin')) {
+        var u8 = new Uint8Array(await f0.arrayBuffer());
+        if (u8[0] === 0xE9) {
+          $('anim').hidden = true;
+          $('toFw').hidden = false;
+          msg('Ini file firmware, gunakan tab Firmware.', 'err');
+          return;
+        }
+        var fb = parseFramesBin(u8);
+        if (typeof fb === 'string') throw new Error(fb + '. File .bin harus firmware.bin atau frames.bin.');
+        S = { kind: 'bin', file: f0, mono: fb.bitmaps, w: fb.w, h: fb.h };
+        $('orient').value = fb.w < fb.h ? 'port' : 'land';
+        $('fps').value = Math.min(30, fb.fps);
+      } else if (name.endsWith('.gif') || type === 'image/gif') {
+        var r = await loadGif(f0);
+        S = { kind: 'src', src: r.src, mono: [] };
+        $('fps').value = r.fps;
+      } else if (type.indexOf('video/') === 0 || /\.(mp4|webm|mov)$/.test(name)) {
+        await openVideo(f0);  // ekstraksi & preview diurus extractClip()
+        return;
+      } else if (type.indexOf('image/') === 0 || /\.(png|jpe?g|bmp)$/.test(name)) {
+        files.sort(function (a, b) { return natCmp(a.name, b.name); });
+        var src = [];
+        for (var i = 0; i < files.length; i++) {
+          var img = await loadImg(files[i]);
+          src.push(grab(img, img.naturalWidth, img.naturalHeight));
+          URL.revokeObjectURL(img.src);
+        }
+        S = { kind: 'src', src: src, mono: [] };
+      } else {
+        throw new Error('Format tidak didukung: ' + f0.name);
+      }
+      if (S.kind === 'src' && !S.src.length) throw new Error('Tidak ada frame ditemukan');
+      showOpts(S.kind);
+      syncLabels();
+      msg('');
+      if (S.kind === 'src') rebuild(); else { updateInfo(); play(); }
+    } catch (e) {
+      S = null;
+      $('anim').hidden = true;
+      closeVideo();
+      msg(e.message || String(e), 'err');
+    }
+  }
+
+  function send() {
+    if (!S) return;
+    var wh = dims();
+    var blob = S.kind === 'bin' ? S.file : new Blob([packFrames2(S.mono, +$('fps').value, wh[0], wh[1])]);
+    $('send').disabled = true;
+    msg('Mengirim...');
+    upload('/frames', blob, 'frames.bin', setProg, function (r) {
+      msg((r.ok ? 'Berhasil: ' : 'Gagal: ') + r.msg, r.ok ? 'ok' : 'err');
+      $('send').disabled = false;
+    });
+  }
+
+  // POST multipart + progress; done({ok,msg}) — koneksi putus dilaporkan sebagai {ok:false,lost:true}
+  function upload(url, blob, fname, onProg, done) {
+    var fd = new FormData();
+    fd.append('f', blob, fname);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.upload.onprogress = function (e) { if (e.lengthComputable) onProg(e.loaded * 100 / e.total); };
+    xhr.onload = function () {
+      var r;
+      try { r = JSON.parse(xhr.responseText); } catch (e) { r = { ok: false, msg: 'Respons tidak dikenal (' + xhr.status + ')' }; }
+      onProg(r.ok ? 100 : 0);
+      done(r);
+    };
+    xhr.onerror = function () { done({ ok: false, lost: true, msg: 'Koneksi terputus.' }); };
+    xhr.send(fd);
+  }
+
+  // ===== Tab & Firmware =====
+  var INFO = null, fwBlob = null, fwVersion = null, pollTimer = 0;
+
+  function showTab(fw) {
+    $('paneA').hidden = fw; $('paneF').hidden = !fw;
+    $('tabA').className = fw ? '' : 'on'; $('tabF').className = fw ? 'on' : '';
+    if (fw) { stopPlay(); loadInfo(); } else if (S) play();
+  }
+
+  function fwMsg(t, cls) { $('fwMsg').textContent = t; $('fwMsg').className = cls || ''; }
+
+  function loadInfo(cb) {
+    fetch('/info', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      INFO = j;
+      $('fwNow').textContent = j.fw + ' (' + j.app + ')';
+      if (cb) cb(j);
+    }).catch(function () { if (!cb) $('fwNow').textContent = 'tidak diketahui'; });
+  }
+
+  async function onFirmware(f) {
+    fwBlob = null; fwVersion = null;
+    $('fwSend').disabled = true; $('fwCard').hidden = true;
+    $('fwProg').style.width = '0';
+    if (!f) return;
+    var info = parseFirmwareInfo(new Uint8Array(await f.arrayBuffer()));
+    if (!info.ok) { fwMsg(info.error + '. Pilih firmware_ota.bin.', 'err'); return; }
+    var slot = INFO && INFO.slot ? INFO.slot : 0x180000;
+    if (f.size > slot) { fwMsg('Firmware terlalu besar: ' + f.size + ' > ' + slot + ' byte.', 'err'); return; }
+    fwBlob = f; fwVersion = info.version;
+    $('fwName').textContent = f.name + ' · ' + (f.size / 1048576).toFixed(2) + ' MB (' + Math.round(f.size * 100 / slot) + '% slot)';
+    $('fwVer').textContent = info.version || 'tidak diketahui';
+    $('fwCard').hidden = false;
+    $('fwSend').disabled = false;
+    if (INFO && info.version && info.version === INFO.fw) fwMsg('Versi file sama dengan yang terpasang (' + INFO.fw + ').', 'warn');
+    else fwMsg('Firmware ESP32-C3 valid, siap di-update.', 'ok');
+  }
+
+  function waitRestart() {
+    var left = 15, oldApp = INFO && INFO.app;
+    var tick = setInterval(function () {
+      fwMsg('Perangkat restart... ' + left + ' dtk. Sambungkan lagi ke WiFi cute_device_OTA bila perlu.', 'ok');
+      if (--left < 0) {
+        clearInterval(tick);
+        fwMsg('Menunggu perangkat... Buka Setting > Update OTA di perangkat, lalu sambungkan lagi ke WiFi cute_device_OTA.', 'ok');
+        var tries = 0;
+        pollTimer = setInterval(function () {
+          if (++tries > 60) { clearInterval(pollTimer); return; }
+          loadInfo(function (j) {
+            clearInterval(pollTimer);
+            fwMsg('Update selesai: versi ' + j.fw + ' (' + j.app + (oldApp && oldApp !== j.app ? ', sebelumnya ' + oldApp : '') + ').', 'ok');
+          });
+        }, 2000);
+      }
+    }, 1000);
+  }
+
+  function sendFirmware() {
+    if (!fwBlob) return;
+    var label = fwVersion ? ' ke versi ' + fwVersion : '';
+    if (!confirm('Update firmware' + label + '? Perangkat akan restart.')) return;
+    $('fwSend').disabled = true;
+    fwMsg('Mengirim firmware... jangan tutup halaman.');
+    upload('/fw', fwBlob, fwBlob.name, function (p) { $('fwProg').style.width = p + '%'; }, function (r) {
+      if (r.ok) { waitRestart(); return; }
+      fwMsg(r.lost ? 'Koneksi terputus. Jika perangkat sudah restart, cek versinya lagi nanti.' : 'Gagal: ' + r.msg, 'err');
+      $('fwSend').disabled = false;
+    });
+  }
+
+  $('tabA').addEventListener('click', function () { showTab(false); });
+  $('tabF').addEventListener('click', function () { showTab(true); });
+  $('toFw').addEventListener('click', function () { msg(''); $('toFw').hidden = true; showTab(true); });
+  $('fwFile').addEventListener('change', function (e) { onFirmware(e.target.files[0]); e.target.value = ''; });
+  $('fwSend').addEventListener('click', sendFirmware);
+
+  $('file').addEventListener('change', function (e) { onFiles(e.target.files); e.target.value = ''; });
+  $('send').addEventListener('click', send);
+  ['thr', 'dither', 'inv', 'fit', 'orient'].forEach(function (id) {
+    $(id).addEventListener('input', function () { syncLabels(); rebuildSoon(); });
+  });
+  $('fps').addEventListener('input', function () {
+    syncLabels();
+    if (hasVideo) updateClip();
+    if (S) { updateInfo(); play(); }
+  });
+  // Video diambil ulang (rentang trim yang sama) sesuai fps baru saat slider dilepas
+  $('fps').addEventListener('change', function () { if (hasVideo) extractClip(); });
+
+  // Slider trim tidak boleh saling melewati; saat digeser, video ikut menampilkan posisi itu
+  function onTrim(isStart) {
+    var a = $('tS'), b = $('tE');
+    if (isStart && +a.value > +b.value - 0.1) b.value = Math.min(+b.max, +a.value + 0.1).toFixed(1);
+    if (!isStart && +b.value < +a.value + 0.1) a.value = Math.max(0, +b.value - 0.1).toFixed(1);
+    updateClip();
+    if (!extracting) $('vid').currentTime = +(isStart ? a : b).value;
+  }
+  $('tS').addEventListener('input', function () { onTrim(true); });
+  $('tE').addEventListener('input', function () { onTrim(false); });
+  $('tSHere').addEventListener('click', function () { $('tS').value = $('vid').currentTime.toFixed(1); onTrim(true); });
+  $('tEHere').addEventListener('click', function () { $('tE').value = $('vid').currentTime.toFixed(1); onTrim(false); });
+  $('grabBtn').addEventListener('click', function () { if (hasVideo) extractClip(); });
+  $('skip').addEventListener('click', function () {
+    var k = skipFactor(S.mono.length, S.kind === 'bin' ? S.file.size : S.packed.length);
+    var keep = function (_, i) { return i % k === 0; };
+    if (S.src) { S.src = S.src.filter(keep); fitCache = {}; }
+    S.mono = S.mono.filter(keep);
+    $('fps').value = Math.max(1, Math.round(+$('fps').value / k));
+    syncLabels();
+    msg('');
+    if (S.kind === 'src') rebuild(); else { updateInfo(); play(); }
+  });
+  syncLabels();
+})();
+</script>
+</body></html>

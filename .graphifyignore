@@ -1,0 +1,14 @@
+# graphify: hanya kode firmware di src/ (frame animasi lama di tools/ = data, bukan kode)
+.pio/
+.vscode/
+include/
+lib/
+scripts/
+test/
+tools/
+web/
+graphify-out/
+*.md
+*.bin
+*.csv
+*.ini
