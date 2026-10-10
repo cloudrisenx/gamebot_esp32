@@ -1,4 +1,4 @@
-# cute_device — jam pintar ESP32-C3 + OLED
+# Project Lucu Lucuan
 
 Firmware jam pintar buatan sendiri berbasis **ESP32-C3** dengan layar **OLED 128x64**: menampilkan jam,
 notifikasi WhatsApp, musik, cuaca, dan navigasi Google Maps dari HP (Android lewat aplikasi **Chronos**,
@@ -81,6 +81,57 @@ animasi boot, reset hi-score, tidur sekarang, update OTA, panduan iPhone, hapus 
 
 **Update OTA** — Setting > Update OTA menyalakan WiFi AP `cute_device_OTA`; sambungkan HP lalu buka
 `http://192.168.4.1` (atau pindai QR di layar) untuk mengunggah `firmware_ota.bin` atau `frames.bin`.
+
+## Cara pakai di Android
+
+1. Pasang aplikasi **Chronos** dari Play Store.
+2. Di jam: **Setting → Mode HP → Android** (bawaan) dan **Setting → Bluetooth → ON**.
+3. Buka Chronos → tambah jam / scan → pilih **cute_device**. Setelah tersambung, pojok kanan atas jam berubah
+   dari `bt` menjadi `BT` (+ baterai HP) dan jam di Beranda langsung sinkron.
+4. Beri izin yang diminta Chronos, terutama **akses notifikasi**, lalu di Chronos aktifkan notifikasi untuk
+   **WhatsApp** (dan aplikasi lain bila ingin).
+5. Pilih jenis pop-up di jam: **Setting → Notif pop-up** = WhatsApp / Semua / OFF.
+6. Opsional di Chronos: aktifkan **cuaca** (muncul di Beranda dan HP → Cuaca) dan **navigasi** (rute Google
+   Maps tampil di menu Navigasi).
+7. Agar tetap tersambung di latar belakang, matikan penghemat baterai untuk Chronos di pengaturan Android.
+
+Jam tidak tersinkron? **Setting → Jam → Sync HP**, atau **Setting → Restart BT**.
+
+## Cara pakai di iPhone
+
+Tidak perlu aplikasi (memakai Bluetooth bawaan iOS: notifikasi, musik, jam). Ringkas:
+
+1. Di jam: **Setting → Mode HP → iPhone** (panduan singkat muncul di layar).
+2. Di iPhone: **Pengaturan → Bluetooth → cute_device → Pasangkan**, lalu **Izinkan** "Bagikan Notifikasi Sistem".
+3. Agar isi pesan WhatsApp ikut tampil: **Pengaturan → Notifikasi → WhatsApp → Tampilkan Pratinjau → Selalu**.
+
+Panggilan dapat diangkat (OK) / ditolak (BACK) dari jam. **Cuaca dan navigasi hanya tersedia di Android.**
+Langkah lengkap, ganti HP, dan pemecahan masalah: [`PANDUAN_IPHONE.md`](PANDUAN_IPHONE.md).
+
+## Cara ganti animasi
+
+Animasi disimpan di partisi `frames` dan diganti **tanpa kabel**, langsung dari browser HP:
+
+1. Di jam: **Setting → Update OTA**. Jam menyalakan WiFi **cute_device_OTA**; password tampil di layar
+   (atau pindai QR WiFi di layar).
+2. Sambungkan HP ke WiFi itu, lalu buka **http://192.168.4.1** (biasanya terbuka sendiri; atau pindai QR kedua).
+3. Tab **Animasi** → pilih file: **GIF**, **video** (MP4/WebM/MOV), **gambar** (PNG/JPG/BMP), atau **frames.bin**.
+4. Atur sebelum kirim:
+   - Video: tentukan **Mulai / Selesai** (tombol "di sini" saat memutar), lalu **Ambil frame**.
+   - **Kecepatan** (fps), **Ambang** (batas hitam/putih), **Orientasi** (Landscape 128x64 / Potret 64x128),
+     **Ukuran** (Pas dengan bingkai hitam / Penuh dipotong / Tarik).
+   - Pratinjau menampilkan jumlah frame, durasi, dan **% kapasitas** setelah kompresi. Bila lebih dari 100%,
+     pendekkan klip, turunkan fps, atau matikan dither.
+5. Tekan **Kirim animasi**. Setelah selesai, animasi baru dipakai di menu **Animasi** dan animasi boot
+   (**Setting → Animasi boot** untuk menyalakan/mematikan saat menyala).
+
+Alternatif dari komputer: buat `frames.bin` dengan skrip, lalu unggah file itu di tab Animasi yang sama.
+
+```bash
+python tools/make_frames.py kucing.gif -o frames.bin --dither          # dari GIF
+python tools/make_frames.py folder_png/ -o frames.bin --fps 12          # dari folder gambar
+python tools/make_frames.py video_tegak.gif -o frames.bin --portrait    # potret 64x128
+```
 
 ## Build & update
 
