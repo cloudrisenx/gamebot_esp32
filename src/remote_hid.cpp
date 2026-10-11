@@ -123,7 +123,12 @@ static bool swapBonds(const char *saveNs, const char *loadNs) {
   if (!writeStore(next)) {
     clearStore(next);
     writeStore(cur);
-    Serial.printf("[BOND] gagal menulis %s, store dipulihkan\n", loadNs);
+    // Data NVS loadNs rusak/tidak kompatibel (mis. sisa percobaan yang gagal, atau layout
+    // ble_store_value_sec berubah setelah upgrade versi NimBLE-Arduino): hapus agar percobaan
+    // berikutnya mulai dari set kosong yang sah, bukan gagal berulang dengan data yang sama.
+    Preferences pc;
+    if (pc.begin(loadNs, false)) { pc.clear(); pc.end(); }
+    Serial.printf("[BOND] gagal menulis %s, store dipulihkan, data %s dihapus\n", loadNs, loadNs);
     return false;
   }
   Serial.printf("[BOND] %s -> NVS (%d bond), NVS %s -> store (%d bond)\n", saveNs, cur.nOur, loadNs, next.nOur);
