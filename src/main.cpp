@@ -12,6 +12,7 @@
 #include "buttons.h"
 #include "settings.h"
 #include "ble_link.h"
+#include "remote_hid.h"
 #include "clockstore.h"
 #include "menu.h"
 #include "games.h"
@@ -276,6 +277,7 @@ static void loopBody() {
   power_feed();
   buttons_update();
   ble_update();
+  remote_update();
   clock_loop();
   ble_setLowPowerLink(!power_screenOn());
 
