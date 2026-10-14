@@ -1,5 +1,6 @@
 #include "settings.h"
 #include <Preferences.h>
+#include "version.h"
 
 static const uint16_t SCREEN_SEC[SCREEN_OPT_COUNT] = {15, 30, 60, 0};
 // Indeks 3 dulu bernama "OFF". Deep sleep mematikan Bluetooth (WA tidak bisa membangunkan jam) dan
@@ -31,6 +32,7 @@ static uint8_t hitungLv5Idx = 2;  // 1,2s
 static const char *const HITUNG_DIST_NAMES[HITUNG_DIST_OPT_COUNT] = {"Tanpa", "Sedikit", "Sedang", "Banyak"};
 static uint8_t hitungDistIdx = 2;  // Sedang
 static bool bootAnim = true;
+static String devName, bleName, otaSsid;  // kosong = nama bawaan (DEVICE_NAME)
 
 void settings_begin() {
   prefs.begin("cfg", false);
@@ -72,6 +74,9 @@ void settings_begin() {
     if (HITUNG_LV5_MS[i] == lv5Ms) hitungLv5Idx = i;
   hitungDistIdx = prefs.getUChar("hitDist", 2) % HITUNG_DIST_OPT_COUNT;
   bootAnim = prefs.getBool("anim", true);
+  devName = prefs.getString("devName", "");
+  bleName = prefs.getString("bleName", "");
+  otaSsid = prefs.getString("ssid", "");
 }
 
 NotifMode settings_notifMode() { return notifMode; }
@@ -183,11 +188,41 @@ void settings_setBootAnim(bool on) {
 
 String settings_otaPassword() {
   String pw = prefs.getString("otapw", "");
-  if (pw.length() != 8) {
+  if (pw.length() < 8 || pw.length() > 63) {
     static const char CHARS[] = "abcdefghjkmnpqrstuvwxyz23456789";  // tanpa i/l/o/0/1
     pw = "";
     for (int i = 0; i < 8; i++) pw += CHARS[esp_random() % (sizeof(CHARS) - 1)];
     prefs.putString("otapw", pw);
   }
   return pw;
+}
+
+String settings_deviceName() { return devName.length() ? devName : String(DEVICE_NAME); }
+String settings_bleName() { return bleName.length() ? bleName : String(DEVICE_NAME); }
+String settings_otaSsid() { return otaSsid.length() ? otaSsid : String(DEVICE_NAME "_OTA"); }
+
+// Hanya ASCII cetak 0x20..0x7E, panjang min..max
+static bool asciiOk(const String &s, unsigned minLen, unsigned maxLen) {
+  if (s.length() < minLen || s.length() > maxLen) return false;
+  for (unsigned i = 0; i < s.length(); i++)
+    if (s[i] < 0x20 || s[i] > 0x7E) return false;
+  return true;
+}
+
+bool settings_setNames(const String &dev, const String &ble, const String &ssid, const String &pw, String &err) {
+  // Semua divalidasi dulu: tidak ada yang tersimpan sebagian
+  if (dev.length() && !asciiOk(dev, 1, NAME_MAX_LEN)) err = "Nama device: 1-20 karakter (huruf/angka/tanda baca biasa)";
+  else if (ble.length() && !asciiOk(ble, 1, NAME_MAX_LEN)) err = "Nama Bluetooth: 1-20 karakter (huruf/angka/tanda baca biasa)";
+  else if (ssid.length() && !asciiOk(ssid, 1, 32)) err = "Nama WiFi: 1-32 karakter (huruf/angka/tanda baca biasa)";
+  else if (pw.length() && !asciiOk(pw, 8, 63)) err = "Password WiFi: 8-63 karakter (huruf/angka/tanda baca biasa)";
+  else err = "";
+  if (err.length()) return false;
+  devName = dev;
+  bleName = ble;
+  otaSsid = ssid;
+  prefs.putString("devName", dev);
+  prefs.putString("bleName", ble);
+  prefs.putString("ssid", ssid);
+  if (pw.length()) prefs.putString("otapw", pw);
+  return true;
 }

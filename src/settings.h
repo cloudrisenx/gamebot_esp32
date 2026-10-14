@@ -66,4 +66,12 @@ uint8_t settings_contrastValue();
 bool settings_bootAnim();
 void settings_setBootAnim(bool on);
 
-String settings_otaPassword();  // 8 karakter acak, dibuat sekali lalu disimpan
+String settings_otaPassword();  // 8 karakter acak dibuat sekali, atau yang diatur di halaman OTA (8-63)
+
+// Nama dari tab "Perangkat" halaman OTA (NVS); kosong = bawaan DEVICE_NAME. Berlaku setelah restart.
+#define NAME_MAX_LEN 20
+String settings_deviceName();   // teks layar & manufacturer Remote
+String settings_bleName();      // Bluetooth Android/Chronos & iPhone; Remote = nama + " Remote"
+String settings_otaSsid();      // WiFi OTA, bawaan DEVICE_NAME "_OTA"
+// Validasi semua dulu (ASCII cetak; nama 1-20, SSID 1-32, password 8-63 / kosong = tetap), lalu simpan.
+bool settings_setNames(const String &dev, const String &ble, const String &ssid, const String &pw, String &err);

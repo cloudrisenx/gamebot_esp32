@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-// HID Bluetooth untuk layar Kamera: jam tampil sebagai tombol media bernama DEVICE_NAME " Remote"
+// HID Bluetooth untuk layar Kamera: jam tampil sebagai tombol media bernama <nama Bluetooth> " Remote"
 // (alamat sendiri, pairing disimpan terpisah dari mode biasa). Eksklusif: BLE Chronos/ANCS
 // dihentikan selama aktif.
 void remote_begin();

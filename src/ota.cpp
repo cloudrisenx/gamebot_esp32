@@ -24,10 +24,11 @@ extern const char OTA_HTML_END[] asm("_binary_web_ota_html_end");
 
 // Ukuran buffer modul QR versi v (sama dengan qrcode_getBufferSize(v))
 #define QR_BUF_SIZE(v) ((((17 + 4 * (v)) * (17 + 4 * (v))) + 7) / 8)
-static const uint8_t QR_WIFI_VERSION = 3;  // 29x29 modul: string WIFI:... (maks 53 byte ECC_LOW)
+// QR WiFi: versi terkecil yang muat (ECC_LOW, mode byte); SSID 32 + password 63 + escape butuh versi 9
+static const uint8_t QR_WIFI_MAX_VERSION = 9;  // 53x53 modul, skala 1 masih muat di kotak 62 px
+static const uint8_t QR_WIFI_CAP[QR_WIFI_MAX_VERSION + 1] = {0, 17, 32, 53, 78, 106, 134, 154, 192, 230};
 static const uint8_t QR_URL_VERSION = 2;   // 25x25 modul: "http://192.168.4.1" (maks 20 byte ECC_MEDIUM)
 static_assert(QR_BUF_SIZE(3) == 106 && QR_BUF_SIZE(2) == 79, "ukuran buffer QR");
-static const int QR_SCALE = 2;
 static const int QR_BOX = 62;  // kotak putih di kiri; QR dipusatkan di dalamnya (quiet zone)
 static const char OTA_URL[] = "http://192.168.4.1";
 static const uint32_t STATUS_SHOW_MS = 4000;  // lama hasil upload tampil sebelum kembali ke langkah 2
@@ -35,9 +36,9 @@ static const uint32_t STATUS_SHOW_MS = 4000;  // lama hasil upload tampil sebelu
 static WebServer server(80);
 static DNSServer dns;
 static QRCode qrWifi, qrUrl;
-static uint8_t qrWifiData[QR_BUF_SIZE(QR_WIFI_VERSION)];
+static uint8_t qrWifiData[QR_BUF_SIZE(QR_WIFI_MAX_VERSION)];
 static uint8_t qrUrlData[QR_BUF_SIZE(QR_URL_VERSION)];
-static String password;
+static String password, ssid;
 static String status;
 static int progress = -1;           // -1 = tidak ada upload
 static uint32_t lastProgressDraw = 0;
@@ -56,11 +57,12 @@ static String uploadErr;
 // QR gelap di atas kotak putih (quiet zone) agar bisa dibaca semua kamera HP
 static void drawQr(QRCode &q) {
   display.fillRect(0, 1, QR_BOX, QR_BOX, SSD1306_WHITE);
-  int off = (QR_BOX - q.size * QR_SCALE) / 2;
+  int scale = max(1, QR_BOX / q.size);
+  int off = (QR_BOX - q.size * scale) / 2;
   for (uint8_t y = 0; y < q.size; y++)
     for (uint8_t x = 0; x < q.size; x++)
       if (qrcode_getModule(&q, x, y))
-        display.fillRect(off + x * QR_SCALE, 1 + off + y * QR_SCALE, QR_SCALE, QR_SCALE, SSD1306_BLACK);
+        display.fillRect(off + x * scale, 1 + off + y * scale, scale, scale, SSD1306_BLACK);
 }
 
 // Teks kolom kanan (x=63, lebar 65 px = maks 10-11 karakter)
@@ -102,12 +104,11 @@ static void draw() {
   } else if (otaStep == 1) {
     drawQr(qrWifi);
     rightText(0, "1/2 WiFi");
-    // 11 karakter = 66 px: print() biasa membungkus huruf terakhir ke baris bawah, jadi digambar
-    // lewat kanvas tanpa wrap (yang terpotong hanya kolom kosong sesudah huruf terakhir)
-    marquee_draw(63, 11, 65, DEVICE_NAME, SSD1306_WHITE, nullptr, false);
-    rightText(20, "_OTA");
+    // SSID & password bisa panjang (diatur di tab Perangkat): kolom 65 px, berjalan bila tidak muat
+    rightText(11, "WiFi:");
+    marquee_draw(63, 20, 65, ssid.c_str());
     rightText(31, "Pass:");
-    rightText(40, password);
+    marquee_draw(63, 40, 65, password.c_str());
     rightText(55, "OK:lanjut");
   } else {
     drawQr(qrUrl);
@@ -257,6 +258,35 @@ static void handleTextSet() {
   else server.send(400, "text/plain", "Teks kosong / tidak ada huruf ASCII");
 }
 
+// String JSON (nilai sudah tervalidasi ASCII cetak; kutip & backslash di-escape)
+static String jsonStr(const String &s) {
+  String o = "\"";
+  for (unsigned i = 0; i < s.length(); i++) {
+    if (s[i] == '"' || s[i] == '\\') o += '\\';
+    o += s[i];
+  }
+  return o + "\"";
+}
+
+// Tab Perangkat: POST dev/ble/ssid/pw (kosong = bawaan; pw kosong = tetap), restart=1 = restart sesudahnya
+static void handleDeviceSet() {
+  String err;
+  if (!settings_setNames(server.arg("dev"), server.arg("ble"), server.arg("ssid"), server.arg("pw"), err)) {
+    server.send(400, "text/plain", err);
+    return;
+  }
+  if (server.arg("restart") == "1") {
+    server.send(200, "text/plain", "Tersimpan. Perangkat restart dalam 2 detik.");
+    status = "Restart...";
+    statusUntil = millis() + STATUS_SHOW_MS;
+    rebootPending = true;
+    rebootAt = millis() + 2000;
+    draw();
+  } else {
+    server.send(200, "text/plain", "Tersimpan. Berlaku setelah restart.");
+  }
+}
+
 static void handleInfo() {
   const esp_partition_t *next = esp_ota_get_next_update_partition(nullptr);
   String json = String("{\"fw\":\"" FW_VERSION "\",\"app\":\"") + esp_ota_get_running_partition()->label +
@@ -268,7 +298,10 @@ static void handleInfo() {
     json += "null";
   }
   const esp_partition_t *fp = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, (esp_partition_subtype_t)0x40, "frames");
-  json += String(",\"frames\":") + (fp ? fp->size : 0) + "}";
+  json += String(",\"frames\":") + (fp ? fp->size : 0);
+  // Nama dari tab Perangkat (nilai tersimpan; kosong = bawaan). Password tidak pernah dikirim.
+  json += ",\"dev\":" + jsonStr(settings_deviceName()) + ",\"ble\":" + jsonStr(settings_bleName()) +
+          ",\"ssid\":" + jsonStr(settings_otaSsid()) + "}";
   server.send(200, "application/json", json);
 }
 
@@ -280,6 +313,8 @@ static void redirectHome() {
 void ota_enter() {
   ble_setSuspended(true);
   password = settings_otaPassword();
+  ssid = settings_otaSsid();
+  marquee_reset();
   progress = -1;
   rebootPending = false;
   status = "Menunggu";
@@ -288,12 +323,23 @@ void ota_enter() {
   lastStations = 0;
 
   // Kedua QR disiapkan sekali: langkah 1 = sambung WiFi, langkah 2 = link halaman
-  String wifiQr = "WIFI:T:WPA;S:" OTA_SSID ";P:" + password + ";;";
-  qrcode_initText(&qrWifi, qrWifiData, QR_WIFI_VERSION, ECC_LOW, wifiQr.c_str());
+  // Format WIFI: karakter \ ; , : " wajib di-escape dengan backslash
+  auto qrEsc = [](const String &s) {
+    String o;
+    for (unsigned i = 0; i < s.length(); i++) {
+      if (strchr("\\;,:\"", s[i])) o += '\\';
+      o += s[i];
+    }
+    return o;
+  };
+  String wifiQr = "WIFI:T:WPA;S:" + qrEsc(ssid) + ";P:" + qrEsc(password) + ";;";
+  uint8_t v = 3;
+  while (v < QR_WIFI_MAX_VERSION && wifiQr.length() > QR_WIFI_CAP[v]) v++;
+  qrcode_initText(&qrWifi, qrWifiData, v, ECC_LOW, wifiQr.c_str());
   qrcode_initText(&qrUrl, qrUrlData, QR_URL_VERSION, ECC_MEDIUM, OTA_URL);
 
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(OTA_SSID, password.c_str());
+  WiFi.softAP(ssid.c_str(), password.c_str());
   // Captive portal: semua nama domain diarahkan ke ESP32 agar halaman terbuka otomatis
   dns.start(53, "*", WiFi.softAPIP());
 
@@ -307,6 +353,7 @@ void ota_enter() {
     server.on("/frames", HTTP_POST, handleFramesDone, handleFramesUpload);
     server.on("/text", HTTP_GET, handleTextGet);
     server.on("/text", HTTP_POST, handleTextSet);
+    server.on("/device", HTTP_POST, handleDeviceSet);
     // URL cek koneksi Android / iOS / Windows
     for (const char *path : {"/generate_204", "/gen_204", "/hotspot-detect.html", "/connecttest.txt", "/ncsi.txt"})
       server.on(path, HTTP_GET, redirectHome);
@@ -366,6 +413,7 @@ AppState ota_update(bool redraw) {
     if (lastStations == 0 && stations > 0 && otaStep == 1) { otaStep = 2; redraw = true; }
     lastStations = stations;
   }
+  if (marquee_frameDue()) redraw = true;
   if (redraw_needed(watch, redraw, otaSignature, 500)) draw();
   return ST_OTA;
 }

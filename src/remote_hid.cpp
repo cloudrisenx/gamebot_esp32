@@ -4,6 +4,10 @@
 #include <Preferences.h>
 #include <esp_mac.h>
 #include "version.h"
+#include "settings.h"
+
+static const unsigned REMOTE_ADV_NAME_MAX = 18;
+static String remoteName() { return settings_bleName() + " Remote"; }
 
 static const uint8_t REPORT_CONSUMER = 1;
 static const uint16_t USAGE_VOLUME_UP = 0x00E9;  // = tombol jepret di aplikasi Kamera iPhone & Android
@@ -220,7 +224,7 @@ static void startAdvertising() {
 
   hid = new NimBLEHIDDevice(server);
   consumerIn = hid->getInputReport(REPORT_CONSUMER);
-  hid->setManufacturer(DEVICE_NAME);
+  hid->setManufacturer(settings_deviceName().c_str());
   hid->setPnp(0x02, 0xE502, 0xA111, 0x0210);
   hid->setHidInfo(0x00, 0x01);
   hid->setReportMap((uint8_t *)REPORT_MAP, sizeof(REPORT_MAP));
@@ -232,7 +236,10 @@ static void startAdvertising() {
   data.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
   data.setAppearance(GENERIC_HID);
   data.addServiceUUID(hid->getHidService()->getUUID());
-  data.setName(DEVICE_NAME " Remote");
+  // Paket iklan 31 B sudah penuh dengan "cute_device Remote" (18 huruf): nama lebih panjang dipotong
+  // sebagai nama pendek; nama lengkap tetap terbaca HP lewat GAP (NimBLEDevice::init)
+  String name = remoteName();
+  data.setName(name.substring(0, REMOTE_ADV_NAME_MAX).c_str(), name.length() <= REMOTE_ADV_NAME_MAX);
   adv->setAdvertisementData(data);
   bool advOk = adv->start();
   connected = rejectedFull = false;
@@ -244,7 +251,7 @@ static void startAdvertising() {
 
 void remote_begin() {
   if (running) return;
-  NimBLEDevice::init(DEVICE_NAME " Remote");
+  NimBLEDevice::init(remoteName().c_str());
   // inhid masih 1 = pemulihan sebelumnya gagal: store berisi bond Remote. Menukar lagi akan
   // menimpa cadangan bond_main (bond iPhone) -> tolak.
   bondError = inHid() || !swapBonds("bond_main", "bond_hid");
@@ -276,7 +283,7 @@ void remote_update() {
   // clearAll=true di sini hanya membuang objek server/advertising C++, bukan bond tersimpan
   // (itu ada di store NVS milik NimBLE sendiri, tidak disentuh deinit).
   NimBLEDevice::deinit(true);
-  NimBLEDevice::init(DEVICE_NAME " Remote");
+  NimBLEDevice::init(remoteName().c_str());
   startAdvertising();
 }
 

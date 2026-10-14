@@ -4,10 +4,10 @@
 #include "buttons.h"
 #include "power.h"
 #include "screen.h"
+#include "settings.h"
 
 extern Adafruit_SSD1306 display;
 
-static const char *const DEFAULT_TEXT = "Halo dari cute_device";
 static const int CHAR_W = 18, TEXT_Y = 18;          // font bawaan ukuran 3: 18x24 px
 static const uint8_t SPEED_PX[3] = {1, 2, 4};       // geser per langkah 30 ms
 static const uint32_t STEP_MS = 30;
@@ -22,7 +22,7 @@ static uint32_t lastStep = 0;
 static void load() {
   if (loaded) return;
   loaded = true;
-  strncpy(text, DEFAULT_TEXT, sizeof(text) - 1);
+  snprintf(text, sizeof(text), "Halo dari %s", settings_deviceName().c_str());
   Preferences p;
   if (p.begin("rtext", true)) {
     String s = p.getString("t", "");
