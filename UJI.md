@@ -8,7 +8,7 @@ Basis kode: v1.9.19 (bc684a5). **Belum** berisi fitur v1.9.20 (menu Teks, Restar
 | Bagian | Isi |
 |---|---|
 | Partisi | app0/app1 1,75 MB (0x1C0000), frames **384 KB** (0x390000/0x60000). nvs/otadata/coredump tetap → setting & pairing tetap terbaca |
-| Ukuran | firmware 1.366.078 B = 74,4% slot 1,75 MB |
+| Ukuran | firmware 1.366.086 B = 74,4% slot 1,75 MB |
 | sdkconfig | PM + tickless idle, BT modem sleep (clock XTAL utama, tanpa kristal 32 kHz), WiFi tanpa WPA3/enterprise |
 | Setting | "Auto sleep" dihapus: layar mati = **selalu** light sleep + BLE; deep sleep otomatis hanya jadwal **Malam** ("Tidur sekarang" tetap) |
 | Saat layar mati | kunci PM dilepas: CPU boleh 40 MHz & chip light sleep saat idle; loop bangun tiap 1 dtk (bukan 60 ms); tombol membangunkan lewat level LOW |
