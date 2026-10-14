@@ -43,7 +43,7 @@ button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 <body><main>
 <div class="tip">Halaman tidak terbuka? Matikan data seluler, lalu buka <b>http://192.168.4.1</b><br>Tidak bisa memilih file? Buka di Chrome/Safari.</div>
 <h1>cute_device Update</h1>
-<nav class="tabs"><button id="tabA" class="on">Animasi</button><button id="tabF">Firmware</button></nav>
+<nav class="tabs"><button id="tabA" class="on">Animasi</button><button id="tabT">Teks</button><button id="tabF">Firmware</button></nav>
 
 <div id="paneA">
 <label class="drop"><input type="file" id="file" multiple
@@ -75,6 +75,17 @@ button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 <button id="send" disabled>Kirim animasi</button>
 <div class="bar"><div id="prog"></div></div>
 <div id="msg"></div>
+</div>
+
+<div id="paneT" hidden>
+<section class="card"><p class="kv">Teks sekarang: <b id="txNow">memuat...</b></p></section>
+<section class="card">
+<label for="txIn">Teks berjalan (menu Teks di jam)</label>
+<textarea id="txIn" rows="3" maxlength="200" style="width:100%;box-sizing:border-box;margin-top:8px"></textarea>
+<p class="kv"><span id="txCount">0</span>/200 · hanya huruf/angka/tanda baca biasa (emoji dibuang)</p>
+</section>
+<button id="txSend">Simpan teks</button>
+<div id="txMsg"></div>
 </div>
 
 <div id="paneF" hidden>
@@ -718,10 +729,24 @@ if (typeof document !== 'undefined') (function () {
   // ===== Tab & Firmware =====
   var INFO = null, fwBlob = null, fwVersion = null, pollTimer = 0;
 
-  function showTab(fw) {
-    $('paneA').hidden = fw; $('paneF').hidden = !fw;
-    $('tabA').className = fw ? '' : 'on'; $('tabF').className = fw ? 'on' : '';
-    if (fw) { stopPlay(); loadInfo(); } else if (S) play();
+  // tab: 'a' = Animasi, 't' = Teks, 'f' = Firmware (showTab(true/false) lama = Firmware/Animasi)
+  function showTab(tab) {
+    if (tab === true) tab = 'f'; else if (tab === false) tab = 'a';
+    $('paneA').hidden = tab !== 'a'; $('paneT').hidden = tab !== 't'; $('paneF').hidden = tab !== 'f';
+    $('tabA').className = tab === 'a' ? 'on' : ''; $('tabT').className = tab === 't' ? 'on' : '';
+    $('tabF').className = tab === 'f' ? 'on' : '';
+    if (tab === 'a') { if (S) play(); } else stopPlay();
+    if (tab === 'f') loadInfo();
+    if (tab === 't') loadText();
+  }
+
+  function txMsg(t, cls) { $('txMsg').textContent = t; $('txMsg').className = cls || ''; }
+
+  function loadText() {
+    fetch('/text', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      $('txNow').textContent = j.t; if (!$('txIn').value) $('txIn').value = j.t;
+      $('txCount').textContent = $('txIn').value.length;
+    }).catch(function () { $('txNow').textContent = '(gagal memuat)'; });
   }
 
   function fwMsg(t, cls) { $('fwMsg').textContent = t; $('fwMsg').className = cls || ''; }
@@ -788,6 +813,18 @@ if (typeof document !== 'undefined') (function () {
   loadInfo();
   $('tabA').addEventListener('click', function () { showTab(false); });
   $('tabF').addEventListener('click', function () { showTab(true); });
+  $('tabT').addEventListener('click', function () { showTab('t'); });
+  $('txIn').addEventListener('input', function () { $('txCount').textContent = $('txIn').value.length; });
+  $('txSend').addEventListener('click', function () {
+    var t = $('txIn').value.trim();
+    if (!t) { txMsg('Teks masih kosong.', 'err'); return; }
+    $('txSend').disabled = true; txMsg('Menyimpan...');
+    fetch('/text', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                     body: 't=' + encodeURIComponent(t) })
+      .then(function (r) { return r.text().then(function (m) { txMsg(m, r.ok ? 'ok' : 'err'); if (r.ok) loadText(); }); })
+      .catch(function () { txMsg('Gagal: jam tidak terjangkau.', 'err'); })
+      .then(function () { $('txSend').disabled = false; });
+  });
   $('toFw').addEventListener('click', function () { msg(''); $('toFw').hidden = true; showTab(true); });
   $('fwFile').addEventListener('change', function (e) { onFirmware(e.target.files[0]); e.target.value = ''; });
   $('fwSend').addEventListener('click', sendFirmware);

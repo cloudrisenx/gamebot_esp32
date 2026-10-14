@@ -1,4 +1,5 @@
 #include <esp_partition.h>
+#include "text_screen.h"
 #include "clockstore.h"
 #include "ota.h"
 #include <WiFi.h>
@@ -239,6 +240,23 @@ static void handleFramesDone() {
 }
 
 // Info untuk tab Firmware/Animasi di halaman OTA
+// Teks berjalan (menu Teks): GET -> {"t":"...","max":200}; POST t=... -> simpan
+static void handleTextGet() {
+  String json = "{\"t\":\"";
+  for (const char *c = text_get(); *c; c++) {
+    if (*c == '"' || *c == '\\') json += '\\';
+    json += *c;
+  }
+  json += String("\",\"max\":") + RTEXT_MAX + "}";
+  server.send(200, "application/json", json);
+}
+
+static void handleTextSet() {
+  String t = server.arg("t");
+  if (text_set(t.c_str(), t.length())) server.send(200, "text/plain", "Tersimpan");
+  else server.send(400, "text/plain", "Teks kosong / tidak ada huruf ASCII");
+}
+
 static void handleInfo() {
   const esp_partition_t *next = esp_ota_get_next_update_partition(nullptr);
   String json = String("{\"fw\":\"" FW_VERSION "\",\"app\":\"") + esp_ota_get_running_partition()->label +
@@ -287,6 +305,8 @@ void ota_enter() {
     server.on("/info", HTTP_GET, handleInfo);
     server.on("/fw", HTTP_POST, handleFirmwareDone, handleFirmwareUpload);
     server.on("/frames", HTTP_POST, handleFramesDone, handleFramesUpload);
+    server.on("/text", HTTP_GET, handleTextGet);
+    server.on("/text", HTTP_POST, handleTextSet);
     // URL cek koneksi Android / iOS / Windows
     for (const char *path : {"/generate_204", "/gen_204", "/hotspot-detect.html", "/connecttest.txt", "/ncsi.txt"})
       server.on(path, HTTP_GET, redirectHome);

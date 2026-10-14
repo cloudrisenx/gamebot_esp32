@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <gfxfont.h>
 
-enum AppState { ST_BOOT, ST_MENU, ST_GAME, ST_NAV, ST_ANIM, ST_SETTINGS, ST_OTA, ST_PHONE, ST_HOME };
+enum AppState { ST_BOOT, ST_MENU, ST_GAME, ST_NAV, ST_ANIM, ST_SETTINGS, ST_OTA, ST_PHONE, ST_HOME, ST_TEXT };
 
 // Setiap fungsi *_update membaca tombol, menggambar bila perlu,
 // dan mengembalikan state berikutnya.

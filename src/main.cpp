@@ -13,6 +13,7 @@
 #include "buttons.h"
 #include "settings.h"
 #include "ble_link.h"
+#include "remote_hid.h"
 #include "clockstore.h"
 #include "menu.h"
 #include "games.h"
@@ -21,6 +22,7 @@
 #include "ota.h"
 #include "phone.h"
 #include "home.h"
+#include "text_screen.h"
 #include "screen.h"
 #include "version.h"
 
@@ -103,6 +105,7 @@ static void enterState(AppState next) {
   if (next == ST_ANIM) anim_enter();
   if (next == ST_OTA) ota_enter();
   if (next == ST_PHONE) phone_enter();
+  if (next == ST_TEXT) text_enter();
   state = next;
   redraw = true;
   marquee_reset();
@@ -277,6 +280,7 @@ static void loopBody() {
   power_feed();
   buttons_update();
   ble_update();
+  remote_update();
   clock_loop();
   ble_setLowPowerLink(!power_screenOn());
 
@@ -297,6 +301,7 @@ static void loopBody() {
                          : state == ST_OTA ? PR_KEEP_OTA
                          : ble_navActive() ? PR_KEEP_NAV
                          : (state == ST_ANIM && anim_isPlaying()) ? PR_KEEP_ANIM
+                         : state == ST_TEXT ? PR_KEEP_ANIM  // running text: layar tetap nyala
                          : PR_NONE;
   power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA);
   // Layar mati = selalu light sleep + BLE; deep sleep otomatis hanya jadwal Malam (power_update)
@@ -327,6 +332,7 @@ static void loopBody() {
     case ST_OTA:      next = ota_update(r); break;
     case ST_PHONE:    next = phone_update(r); break;
     case ST_HOME:     next = home_update(r); break;
+    case ST_TEXT:     next = text_update(r); break;
   }
   enterState(next);
   markAppValid();
@@ -338,7 +344,7 @@ static uint32_t loopIdleMs() {
     return power_buttonRecentlyChanged(500) ? LOOP_IDLE_NORMAL_MS
            : power_lightSleepActive()       ? LOOP_IDLE_LIGHT_SLEEP_MS
                                             : LOOP_IDLE_SCREEN_OFF_MS;
-  bool active = state == ST_GAME || state == ST_ANIM || state == ST_BOOT || state == ST_OTA ||
+  bool active = state == ST_GAME || state == ST_ANIM || state == ST_BOOT || state == ST_OTA || state == ST_TEXT ||
                 popupActive || callShown;
   return active ? LOOP_IDLE_ACTIVE_MS : LOOP_IDLE_NORMAL_MS;
 }
@@ -358,7 +364,7 @@ void loop() {
   if (!power_screenOn()) { offLoops++; offLoopUs += loopUs; }
   if (state == ST_GAME && loopUs > LOOP_SLOW_WARN_MS * 1000UL) slowInGame = true;
   if (millis() - lastHealth >= HEALTH_LOG_MS) {
-    static const char *const STATE_NAMES[] = {"BOOT", "MENU", "GAME", "NAV", "ANIM", "SETTINGS", "OTA", "HP", "HOME"};
+    static const char *const STATE_NAMES[] = {"BOOT", "MENU", "GAME", "NAV", "ANIM", "SETTINGS", "OTA", "HP", "HOME", "TEKS"};
     uint32_t elapsed = millis() - lastHealth;
     lastHealth = millis();
     Serial.printf("[HEALTH] CPU %u MHz, loop %u/dtk, maks %.1f ms, flush maks %.1f ms | heap %u B, min %u B, "

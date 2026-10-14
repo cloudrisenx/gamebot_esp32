@@ -123,7 +123,12 @@ static bool swapBonds(const char *saveNs, const char *loadNs) {
   if (!writeStore(next)) {
     clearStore(next);
     writeStore(cur);
-    Serial.printf("[BOND] gagal menulis %s, store dipulihkan\n", loadNs);
+    // Data NVS loadNs rusak/tidak kompatibel (mis. sisa percobaan yang gagal, atau layout
+    // ble_store_value_sec berubah setelah upgrade versi NimBLE-Arduino): hapus agar percobaan
+    // berikutnya mulai dari set kosong yang sah, bukan gagal berulang dengan data yang sama.
+    Preferences pc;
+    if (pc.begin(loadNs, false)) { pc.clear(); pc.end(); }
+    Serial.printf("[BOND] gagal menulis %s, store dipulihkan, data %s dihapus\n", loadNs, loadNs);
     return false;
   }
   Serial.printf("[BOND] %s -> NVS (%d bond), NVS %s -> store (%d bond)\n", saveNs, cur.nOur, loadNs, next.nOur);
@@ -137,6 +142,15 @@ static bool running = false;
 static bool bondError = false;
 static volatile bool connected = false;
 static volatile bool rejectedFull = false;
+
+// Reset otomatis bila HP putus sendiri tak lama sesudah sempat terenkripsi (pairing gagal
+// menyelesaikan proses bonding, bukan karena pengguna keluar layar Kamera). Dibatasi beberapa
+// kali supaya tidak loop reset tanpa henti bila memang ada masalah yang tidak hilang dengan reset.
+static uint32_t resetAtMs = 0;
+static int resetCount = 0;
+static const int MAX_AUTO_RESET = 4;
+static const uint32_t RESET_DELAY_MS = 600;
+static volatile bool restartPending = false;  // reset software gagal berkali-kali: restart total chip
 
 class RemoteCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *server, NimBLEConnInfo &info) override {
@@ -152,8 +166,20 @@ class RemoteCallbacks : public NimBLEServerCallbacks {
     rejectedFull = false;
   }
   void onDisconnect(NimBLEServer *, NimBLEConnInfo &info, int reason) override {
+    bool wasReady = connected;  // sempat terenkripsi sebelum putus = percobaan pairing yang gagal
     connected = false;
     Serial.printf("[REMOTE] disconnect %s reason=%d\n", info.getIdAddress().toString().c_str(), reason);
+    if (wasReady && running && !bondError && !rejectedFull) {
+      if (resetCount < MAX_AUTO_RESET) {
+        resetCount++;
+        resetAtMs = millis() + RESET_DELAY_MS;
+      } else {
+        // Reset software (deinit/init stack BLE) sudah dicoba berkali-kali dan tetap gagal:
+        // sejenis state radio BT kadang hanya bersih dengan reset total chip (setara cabut daya).
+        // ESP.restart() di sini setara itu, tanpa pengguna harus cabut daya manual.
+        restartPending = true;
+      }
+    }
   }
   void onAuthenticationComplete(NimBLEConnInfo &info) override {
     connected = info.isEncrypted();
@@ -180,20 +206,10 @@ void remote_recoverBonds() {
   Serial.println("[BOND] pemulihan setelah reset di mode Remote");
 }
 
-void remote_begin() {
-  if (running) return;
-  NimBLEDevice::init(DEVICE_NAME " Remote");
-  // inhid masih 1 = pemulihan sebelumnya gagal: store berisi bond Remote. Menukar lagi akan
-  // menimpa cadangan bond_main (bond iPhone) -> tolak.
-  bondError = inHid() || !swapBonds("bond_main", "bond_hid");
-  if (bondError) {
-    // Tanpa store terpisah, pairing Remote bisa menimpa bond iPhone: jangan advertise
-    NimBLEDevice::deinit(true);
-    running = true;  // layar tetap di mode Remote untuk menampilkan error
-    return;
-  }
-  setInHid(true);
-
+// Nyalakan server HID + advertising. Dipisah dari remote_begin() supaya bisa dipanggil ulang
+// oleh remote_update() sebagai "reset Bluetooth" tanpa mengulang tukar-bond (store aktif tetap
+// berisi bond_hid). NimBLEDevice::init() harus sudah dipanggil sebelum ini.
+static void startAdvertising() {
   uint8_t addr[6];
   remoteAddress(addr);
   bool addrOk = NimBLEDevice::setOwnAddr(addr) && NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_RANDOM);
@@ -219,12 +235,49 @@ void remote_begin() {
   data.setName(DEVICE_NAME " Remote");
   adv->setAdvertisementData(data);
   bool advOk = adv->start();
-  running = true;
   connected = rejectedFull = false;
   Serial.printf("[REMOTE] alamat %s (%s), adv %s, payload %u/31 B, bond %d/%d\n",
                 NimBLEDevice::getAddress().toString().c_str(), addrOk ? "random static" : "GAGAL set random",
                 advOk ? "OK" : "GAGAL", (unsigned)data.getPayload().size(), NimBLEDevice::getNumBonds(),
                 CONFIG_BT_NIMBLE_MAX_BONDS);
+}
+
+void remote_begin() {
+  if (running) return;
+  NimBLEDevice::init(DEVICE_NAME " Remote");
+  // inhid masih 1 = pemulihan sebelumnya gagal: store berisi bond Remote. Menukar lagi akan
+  // menimpa cadangan bond_main (bond iPhone) -> tolak.
+  bondError = inHid() || !swapBonds("bond_main", "bond_hid");
+  if (bondError) {
+    // Tanpa store terpisah, pairing Remote bisa menimpa bond iPhone: jangan advertise
+    NimBLEDevice::deinit(true);
+    running = true;  // layar tetap di mode Remote untuk menampilkan error
+    return;
+  }
+  setInHid(true);
+  running = true;
+  resetCount = 0;
+  resetAtMs = 0;
+  startAdvertising();
+}
+
+void remote_update() {
+  if (restartPending) {
+    Serial.println("[REMOTE] reset BLE software gagal berkali-kali, restart total chip...");
+    delay(50);  // beri waktu Serial.flush implisit sebelum restart
+    ESP.restart();
+  }
+  if (!running || bondError || !resetAtMs || (int32_t)(millis() - resetAtMs) < 0) return;
+  resetAtMs = 0;
+  Serial.printf("[REMOTE] reset BLE otomatis setelah pairing gagal (percobaan %d/%d)\n", resetCount, MAX_AUTO_RESET);
+  delete hid;
+  hid = nullptr;
+  consumerIn = nullptr;
+  // clearAll=true di sini hanya membuang objek server/advertising C++, bukan bond tersimpan
+  // (itu ada di store NVS milik NimBLE sendiri, tidak disentuh deinit).
+  NimBLEDevice::deinit(true);
+  NimBLEDevice::init(DEVICE_NAME " Remote");
+  startAdvertising();
 }
 
 void remote_end() {

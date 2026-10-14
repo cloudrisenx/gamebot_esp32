@@ -1,3 +1,4 @@
+#include <nvs_flash.h>
 #include <soc/rtc_cntl_reg.h>
 #include <esp32c3/rom/rtc.h>
 #include "clockstore.h"
@@ -56,6 +57,16 @@ static const uint8_t PROGMEM ICON_MENU_ANIM[] = {
   0x30, 0x00, 0x00, 0x0C, 0x3F, 0xFF, 0xFF, 0xFC, 0x3F, 0xFF, 0xFF, 0xFC, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+static const uint8_t PROGMEM ICON_MENU_TEXT[] = {
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0xFF, 0xFF, 0xF8,
+  0x3F, 0xFF, 0xFF, 0xFC, 0x60, 0x00, 0x00, 0x06, 0x60, 0x00, 0x00, 0x06, 0x61, 0xC3, 0xC0, 0x06,
+  0x61, 0xC3, 0xE0, 0x06, 0x63, 0x63, 0x30, 0x06, 0x63, 0x63, 0xE0, 0x06, 0x62, 0x23, 0xE3, 0xFE,
+  0x67, 0xF3, 0xF3, 0xFE, 0x66, 0x33, 0x18, 0x06, 0x6C, 0x1B, 0xF0, 0x06, 0x6C, 0x1B, 0xE0, 0x06,
+  0x60, 0x00, 0x00, 0x06, 0x60, 0x00, 0x00, 0x06, 0x60, 0x00, 0x00, 0x06, 0x3F, 0xFF, 0xFF, 0xFC,
+  0x1F, 0xFF, 0xFF, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0xE0, 0x00, 0x00,
+  0x03, 0xFF, 0xFF, 0xF0, 0x0F, 0xFF, 0xFF, 0xF0, 0x01, 0xE0, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00,
+};
 static const uint8_t PROGMEM ICON_MENU_SETTINGS[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0xE0, 0x00, 0x00, 0x0F, 0xE0, 0x00, 0x00, 0x0F, 0xE0, 0x00,
   0x0F, 0xCF, 0xE7, 0xE0, 0x0F, 0xCF, 0xE7, 0xE0, 0x0F, 0xDF, 0xFF, 0xE0, 0x0F, 0xFF, 0xFF, 0xE0,
@@ -67,21 +78,21 @@ static const uint8_t PROGMEM ICON_MENU_SETTINGS[] = {
   0x00, 0x07, 0xE0, 0x00, 0x00, 0x07, 0xE0, 0x00, 0x00, 0x07, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static const char *MENU_ITEMS[] = {"Animasi", "Game", "HP", "Navigasi", "Setting"};
-static const uint8_t *const MENU_ICONS[] = {ICON_MENU_ANIM, ICON_MENU_GAME, ICON_MENU_PHONE, ICON_MENU_NAV,
-                                            ICON_MENU_SETTINGS};
-static const AppState MENU_TARGETS[] = {ST_ANIM, ST_GAME, ST_PHONE, ST_NAV, ST_SETTINGS};
-static const int MENU_COUNT = 5;
+static const char *MENU_ITEMS[] = {"Animasi", "Teks", "Game", "HP", "Navigasi", "Setting"};
+static const uint8_t *const MENU_ICONS[] = {ICON_MENU_ANIM, ICON_MENU_TEXT, ICON_MENU_GAME, ICON_MENU_PHONE,
+                                            ICON_MENU_NAV, ICON_MENU_SETTINGS};
+static const AppState MENU_TARGETS[] = {ST_ANIM, ST_TEXT, ST_GAME, ST_PHONE, ST_NAV, ST_SETTINGS};
+static const int MENU_COUNT = 6;
 static Carousel menuCar = {};
 
 enum SettingItem {
-  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_FLASH_MODE, SI_OTA,
+  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
   SI_GUIDE, SI_UNPAIR, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Mode HP", "Jam", "Layar mati", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
-  "Animasi boot", "Reset hi-score", "Tidur sekarang", "Mode flash", "Update OTA",
+  "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Mode flash", "Reset data", "Update OTA",
   "Panduan iPhone", "Hapus pairing", "Info"
 };
 static const char *PHONE_OPTS[PHONE_MODE_COUNT] = {"Android", "iPhone"};
@@ -133,7 +144,7 @@ static uint32_t unpairConfirmUntil = 0;
 static uint32_t unpairDoneUntil = 0;
 static bool unpairOk = false;
 static uint32_t btRestartConfirmUntil = 0;
-static uint32_t flashConfirmUntil = 0;
+static uint32_t restartConfirmUntil = 0, resetDataConfirmUntil = 0, flashConfirmUntil = 0;
 static uint32_t btRestartAt = 0;          // 0 = belum pernah; hasil tampil 4 dtk sesudahnya
 static const uint32_t BT_RESTART_SHOW_MS = 4000, BT_RESTART_WAIT_MS = 1500;
 
@@ -441,6 +452,8 @@ AppState menu_update(bool redraw) {
   return ST_MENU;
 }
 
+static void drawFullMessage(const char *l1, const char *l2);
+
 static String settingValue(int item) {
   switch (item) {
     case SI_WA:       return NOTIF_OPTS[settings_notifMode()];
@@ -476,12 +489,14 @@ static String settingValue(int item) {
       return buf;
     }
     case SI_OLED_TEST: return ">";
+    case SI_RESTART:    return millis() < restartConfirmUntil ? "OK lagi?" : ">";
+    case SI_RESET_DATA: return millis() < resetDataConfirmUntil ? "OK lagi?" : ">";
+    case SI_FLASH_MODE: return millis() < flashConfirmUntil ? "OK lagi?" : ">";
     case SI_BOOTANIM: return settings_bootAnim() ? "ON" : "OFF";
     case SI_RESET_HI:
       if (millis() < resetDoneUntil) return "Reset!";
       if (millis() < resetConfirmUntil) return "OK lagi?";
       return String(GAME_COUNT) + " game";
-    case SI_FLASH_MODE: return millis() < flashConfirmUntil ? "OK lagi?" : ">";
     case SI_OTA:
     case SI_GUIDE:
     case SI_INFO:     return ">";
@@ -552,6 +567,48 @@ static void activateSetting(int item) {
       settings_setI2cIdx(settings_i2cIdx() + 1);
       oled_applyClock(settings_i2cHz());  // langsung berlaku (di antara flush, loop yang sama)
       break;
+    case SI_RESTART:
+      if (millis() < restartConfirmUntil) {
+        drawFullMessage("Restart...", nullptr);
+        Serial.println("[SETTING] restart");
+        clock_save("restart");
+        Serial.flush();
+        ESP.restart();
+      }
+      restartConfirmUntil = millis() + RESET_CONFIRM_MS;
+      break;
+    case SI_FLASH_MODE:
+      if (millis() < flashConfirmUntil) {
+        // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
+        // Keluar dari download mode: flash/esptool hard reset.
+        drawFullMessage("Mode flash", "flash via USB");
+        Serial.println("[SETTING] reboot ke mode download (flash USB)");
+        clock_save("flash");
+        ble_shutdown();
+        Serial.flush();
+        delay(1000);
+        display.ssd1306_command(SSD1306_DISPLAYOFF);  // layar gelap = sudah bukan aplikasi
+        REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+        // esp_restart() di C3 hanya reset CPU dan ROM mengabaikan bit di atas; reset sistem membacanya
+        software_reset();
+      }
+      flashConfirmUntil = millis() + RESET_CONFIRM_MS;
+      break;
+    case SI_RESET_DATA:
+      if (millis() < resetDataConfirmUntil) {
+        // Hapus SELURUH partisi NVS: setting, hi-score, mode game, jam & cuaca tersimpan, teks berjalan,
+        // timer kamera, status & data pairing Bluetooth. Partisi animasi (frames) dan firmware tidak tersentuh.
+        drawFullMessage("Mereset...", "data dihapus");
+        Serial.println("[SETTING] reset data: hapus semua NVS lalu restart");
+        ble_shutdown();
+        esp_err_t err = nvs_flash_erase();
+        Serial.printf("[SETTING] nvs_flash_erase: %s\n", esp_err_to_name(err));
+        Serial.flush();
+        delay(300);
+        ESP.restart();
+      }
+      resetDataConfirmUntil = millis() + RESET_CONFIRM_MS;
+      break;
     case SI_OLED_TEST:
       oledTestOpen = true;
       oledPattern = 0;
@@ -569,29 +626,6 @@ static void activateSetting(int item) {
       }
       break;
     case SI_SLEEP_NOW: power_requestSleep(1000); break;
-    case SI_FLASH_MODE:
-      if (millis() < flashConfirmUntil) {
-        // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
-        // Keluar dari download mode: flash/esptool hard reset.
-        display.clearDisplay();
-        display.setTextColor(SSD1306_WHITE);
-        display.setCursor(34, 20);
-        display.print("Mode flash");
-        display.setCursor(25, 36);
-        display.print("flash via USB");
-        oled_flush();
-        Serial.println("[SETTING] reboot ke mode download (flash USB)");
-        clock_save("flash");
-        ble_shutdown();
-        Serial.flush();
-        delay(1000);
-        display.ssd1306_command(SSD1306_DISPLAYOFF);  // layar gelap = sudah bukan aplikasi
-        REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
-        // esp_restart() di C3 hanya reset CPU dan ROM mengabaikan bit di atas; reset sistem membacanya
-        software_reset();
-      }
-      flashConfirmUntil = millis() + RESET_CONFIRM_MS;
-      break;
     case SI_OTA:       otaRequested = true; break;
     case SI_INFO:      infoOpen = true; break;
   }
@@ -635,8 +669,10 @@ static uint32_t infoSignature() {
 // Setting: teks sementara "OK lagi?" / "Reset!" ikut menentukan tanda
 static uint32_t settingsSignature() {
   uint32_t h = sig_mix(header_signature(), millis() < resetConfirmUntil);
-  h = sig_mix(h, millis() < btRestartConfirmUntil);
+  h = sig_mix(h, millis() < restartConfirmUntil);
+  h = sig_mix(h, millis() < resetDataConfirmUntil);
   h = sig_mix(h, millis() < flashConfirmUntil);
+  h = sig_mix(h, millis() < btRestartConfirmUntil);
   h = sig_str(h, settingValue(SI_BT_RESTART).c_str());
   h = sig_mix(h, clock_source());
   h = sig_mix(h, millis() < unpairConfirmUntil);
@@ -941,6 +977,18 @@ static bool oledTestUpdate(bool redraw) {
   return true;
 }
 
+// Pesan layar penuh sebelum restart (tidak kembali ke loop)
+static void drawFullMessage(const char *l1, const char *l2) {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(2);
+  display.setCursor((128 - (int)strlen(l1) * 12) / 2, l2 ? 16 : 24);
+  display.print(l1);
+  display.setTextSize(1);
+  if (l2) { display.setCursor((128 - (int)strlen(l2) * 6) / 2, 40); display.print(l2); }
+  oled_flush();
+}
+
 // Isi satu kartu Setting: nama di atas, nilai sekarang besar di bawahnya
 static void settingCard(int item, int dx) {
   display.setTextColor(SSD1306_WHITE);
@@ -999,11 +1047,15 @@ AppState settings_screen_update(bool redraw) {
       return ST_SETTINGS;
     }
   } else if (btn_pressed(BTN_BACK)) {
-    resetConfirmUntil = unpairConfirmUntil = btRestartConfirmUntil = flashConfirmUntil = 0;
+    resetConfirmUntil = unpairConfirmUntil = btRestartConfirmUntil = restartConfirmUntil = resetDataConfirmUntil =
+        flashConfirmUntil = 0;
     return ST_MENU;
   }
 
-  if (carousel_input(settingCar, SI_COUNT)) { resetConfirmUntil = btRestartConfirmUntil = flashConfirmUntil = 0; redraw = true; }
+  if (carousel_input(settingCar, SI_COUNT)) {
+    resetConfirmUntil = btRestartConfirmUntil = restartConfirmUntil = resetDataConfirmUntil = flashConfirmUntil = 0;
+    redraw = true;
+  }
   if (carousel_frameDue(settingCar)) redraw = true;
   if (btn_pressed(BTN_OK)) {
     activateSetting(settingCar.sel);
@@ -1020,7 +1072,8 @@ AppState settings_screen_update(bool redraw) {
   // Teks konfirmasi aktif: cek lebih sering agar hilang tepat waktu
   bool tempText = millis() < resetConfirmUntil + 200 || millis() < resetDoneUntil + 200 ||
                   millis() < unpairConfirmUntil + 200 || millis() < unpairDoneUntil + 200 ||
-                  millis() < btRestartConfirmUntil + 200 || millis() < flashConfirmUntil + 200 ||
+                  millis() < btRestartConfirmUntil + 200 || millis() < restartConfirmUntil + 200 ||
+                  millis() < resetDataConfirmUntil + 200 || millis() < flashConfirmUntil + 200 ||
                   (btRestartAt && millis() - btRestartAt < BT_RESTART_SHOW_MS + 200);
   if (!redraw_needed(watch, redraw, settingsSignature, tempText ? 100 : 1000)) return ST_SETTINGS;
 

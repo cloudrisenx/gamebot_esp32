@@ -123,8 +123,8 @@ static void draw() {
   display.drawFastHLine(0, RULE_Y, 128, SSD1306_WHITE);
   // Legenda = urutan tombol fisik kiri -> kanan: UP, DOWN, OK, BACK (MENU_SWAP_LR menukar label UP/DOWN).
   // Lebar 36 + 36 + 24 + 7 = 103 px; sisa 25 px dibagi rata ke 3 celah (8, 8, 9): x 0, 44, 88, 121.
-  const char *upLabel = MENU_SWAP_LR ? "<Musik" : "<Notif";
-  const char *downLabel = MENU_SWAP_LR ? "Notif>" : "Musik>";
+  const char *upLabel = MENU_SWAP_LR ? "<Anim" : "<Notif";
+  const char *downLabel = MENU_SWAP_LR ? "Notif>" : "Anim>";
   display.setCursor(0, LEGEND_Y);
   display.print(upLabel);
   display.setCursor(44, LEGEND_Y);
@@ -161,7 +161,7 @@ AppState home_update(bool redraw) {
   static RedrawWatch watch;
   if (btn_pressed(BTN_OK)) return ST_MENU;
   if (btn_pressed(BTN_UP)) { phone_requestStart(PHONE_START_NOTIF); return ST_PHONE; }
-  if (btn_pressed(BTN_DOWN)) { phone_requestStart(PHONE_START_MUSIC); return ST_PHONE; }
+  if (btn_pressed(BTN_DOWN)) return ST_ANIM;  // musik tetap lewat HP > Musik
   if (btn_pressed(BTN_BACK)) power_screenOffNow();
 
   if (marquee_frameDue()) redraw = true;

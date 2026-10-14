@@ -1,17 +1,17 @@
-# Graph Report - ESP32  (2026-10-10)
+# Graph Report - ESP32  (2026-10-14)
 
 ## Corpus Check
-- 46 files · ~42,981 words
+- 51 files · ~44,516 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 2 file(s) not represented in the graph (top: (none) 2)
+- Unclassified: 4 file(s) not represented in the graph (top: (none) 2, .S 1, .defaults 1)
 
 ## Summary
-- 754 nodes · 1886 edges · 23 communities
-- Extraction: 74% EXTRACTED · 26% INFERRED · 0% AMBIGUOUS · INFERRED: 499 edges (avg confidence: 0.85)
+- 776 nodes · 1934 edges · 29 communities (26 shown, 3 thin omitted)
+- Extraction: 74% EXTRACTED · 26% INFERRED · 0% AMBIGUOUS · INFERRED: 510 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1c3dbdef`
+- Built from commit: `9f81f5c2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -29,65 +29,69 @@
 - game_dino.cpp
 - SettingItem
 - games.cpp
-- clockstore.cpp
+- home.cpp
 - GameDef
 - game_flappy.cpp
 - remote_hid.cpp
 - phone.cpp
 - settings_hiscore
-- TttMode
+- ble_isIphone
 - ota.cpp
 - WeatherCache
 - SyncState
+- ble_update
+- IosServerCallbacks
+- RawNotif
+- AmsUpdate
 
 ## God Nodes (most connected - your core abstractions)
-1. `oled_flush()` - 33 edges
-2. `loopBody()` - 32 edges
-3. `activateSetting()` - 29 edges
-4. `settings_hiscore()` - 25 edges
-5. `btn_pressed()` - 24 edges
+1. `oled_flush()` - 35 edges
+2. `loopBody()` - 34 edges
+3. `activateSetting()` - 32 edges
+4. `btn_pressed()` - 25 edges
+5. `settings_hiscore()` - 25 edges
 6. `hitung_update()` - 24 edges
 7. `phone_update()` - 24 edges
 8. `settings_screen_update()` - 23 edges
-9. `SettingItem` - 20 edges
+9. `SettingItem` - 22 edges
 10. `setup()` - 19 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `resumeAfterOverlay()` --calls--> `anim_resume()`  [INFERRED]
-  src/main.cpp → src/anim.cpp
+- `enterState()` --calls--> `ble_setNavScreen()`  [INFERRED]
+  src/main.cpp → src/ble_link.cpp
+- `applyTime()` --calls--> `ble_setLocalTime()`  [INFERRED]
+  src/ios_link.cpp → src/ble_link.cpp
+- `clockEditorUpdate()` --calls--> `ble_takeSyncDone()`  [INFERRED]
+  src/menu.cpp → src/ble_link.cpp
 - `nav_screen_update()` --calls--> `ble_navChanged()`  [INFERRED]
   src/menu.cpp → src/ble_link.cpp
-- `setup()` --calls--> `buttons_begin()`  [INFERRED]
-  src/main.cpp → src/buttons.cpp
-- `loopBody()` --calls--> `buttons_update()`  [INFERRED]
-  src/main.cpp → src/buttons.cpp
-- `loopBody()` --calls--> `btn_any_pending()`  [INFERRED]
-  src/main.cpp → src/buttons.cpp
+- `phone_update()` --calls--> `ble_phoneInfoChanged()`  [INFERRED]
+  src/phone.cpp → src/ble_link.cpp
 
 ## Import Cycles
 - None detected.
 
-## Communities (23 total, 0 thin omitted)
+## Communities (29 total, 3 thin omitted)
 
 ### Community 0 - "ble_link.cpp"
-Cohesion: 0.06
-Nodes (67): addHistory(), ble_address(), ble_begin(), ble_callAnswer(), ble_connected(), ble_date(), ble_isIphone(), ble_lastNotifInfo() (+59 more)
+Cohesion: 0.08
+Nodes (35): addHistory(), ble_address(), ble_begin(), ble_deletePairings(), ble_lastNotifInfo(), ble_navChanged(), ble_phoneInfoChanged(), ble_pushNotification() (+27 more)
 
 ### Community 1 - "menu.cpp"
-Cohesion: 0.11
-Nodes (49): ble_takeSyncDone(), btn_pressed(), buttons_clear(), clock_lastSync(), drawList(), games_update(), home_update(), handleCall() (+41 more)
+Cohesion: 0.07
+Nodes (65): anim_enter(), anim_isPlaying(), anim_resume(), anim_update(), logStats(), btn_any_pressed(), btn_pressed(), buttons_clear() (+57 more)
 
 ### Community 2 - "settings.cpp"
 Cohesion: 0.06
-Nodes (57): buttons_attachWake(), loop(), loopIdleMs(), setup(), activateSetting(), settingCard(), settingValue(), clockMinutes() (+49 more)
+Nodes (55): buttons_attachWake(), setup(), activateSetting(), settingCard(), settingValue(), clockMinutes(), enterDeepSleep(), power_activity() (+47 more)
 
 ### Community 3 - "frames_store.cpp"
-Cohesion: 0.09
-Nodes (37): anim_enter(), anim_isPlaying(), anim_resume(), anim_update(), drawFrame(), logStats(), ble_setNavScreen(), btn_any_pressed() (+29 more)
+Cohesion: 0.16
+Nodes (24): drawFrame(), crc32Update(), dataLen(), dataPtr(), decodeFrame(), findPartition(), frameOffset(), frames_begin() (+16 more)
 
 ### Community 4 - "ios_link.cpp"
-Cohesion: 0.07
-Nodes (40): ble_deletePairings(), ble_markPhoneInfoChanged(), ble_setLocalTime(), ble_setRinging(), ams_parsePlaybackInfo(), AmsUpdate, attr, entity (+32 more)
+Cohesion: 0.13
+Nodes (25): ble_markPhoneInfoChanged(), ble_setRinging(), ams_parsePlaybackInfo(), ancs_parseAttributes(), ancs_parseNotificationSource(), appLabel(), applyTime(), copyAttr() (+17 more)
 
 ### Community 5 - "game_duel.cpp"
 Cohesion: 0.06
@@ -102,8 +106,8 @@ Cohesion: 0.07
 Nodes (52): btn_held(), bounce(), centerText(), draw(), draw1P(), draw2P(), drawOver2P(), drawPaddle() (+44 more)
 
 ### Community 8 - "game_ttt.cpp"
-Cohesion: 0.20
-Nodes (16): centerAt(), cpuMove(), cpuTurn(), cursorToEmpty(), draw(), drawMark(), drawPanel(), findLine() (+8 more)
+Cohesion: 0.16
+Nodes (19): centerAt(), cpuMove(), cpuTurn(), cursorToEmpty(), draw(), drawMark(), drawPanel(), findLine() (+11 more)
 
 ### Community 9 - "game_breakout.cpp"
 Cohesion: 0.32
@@ -114,16 +118,16 @@ Cohesion: 0.16
 Nodes (20): dino_enter(), dino_update(), draw(), drawObstacle(), gameOver(), gapFor(), obsSize(), Obstacle (+12 more)
 
 ### Community 11 - "SettingItem"
-Cohesion: 0.10
-Nodes (20): SettingItem, SI_BOOTANIM, SI_BT, SI_BT_RESTART, SI_CLOCK, SI_CONTRAST, SI_COUNT, SI_GUIDE (+12 more)
+Cohesion: 0.09
+Nodes (22): SettingItem, SI_BOOTANIM, SI_BT, SI_BT_RESTART, SI_CLOCK, SI_CONTRAST, SI_COUNT, SI_GUIDE (+14 more)
 
 ### Community 12 - "games.cpp"
-Cohesion: 0.19
+Cohesion: 0.15
 Nodes (4): games_drawSidePanels(), games_isPlaying(), panelDots(), printShort()
 
-### Community 13 - "clockstore.cpp"
-Cohesion: 0.32
-Nodes (11): ble_epoch(), ble_setClock(), ble_setClockParts(), ble_takeTimeSynced(), clock_begin(), clock_loop(), clock_save(), clock_setManual() (+3 more)
+### Community 13 - "home.cpp"
+Cohesion: 0.11
+Nodes (16): ble_epoch(), ble_setClock(), ble_setClockParts(), ble_takeTimeSynced(), clock_begin(), clock_loop(), clock_save(), clock_setManual() (+8 more)
 
 ### Community 14 - "GameDef"
 Cohesion: 0.40
@@ -135,23 +139,23 @@ Nodes (15): draw(), drawPipe(), flappy_enter(), flappy_update(), gameOver(), gap
 
 ### Community 16 - "remote_hid.cpp"
 Cohesion: 0.09
-Nodes (24): ble_remoteStop(), BondSet, cccd, nCccd, nOur, nPeer, our, peer (+16 more)
+Nodes (26): ble_remoteStop(), BondSet, cccd, nCccd, nOur, nPeer, our, peer (+18 more)
 
 ### Community 17 - "phone.cpp"
 Cohesion: 0.07
-Nodes (43): ble_historyCount(), ble_historyDelete(), ble_markRead(), ble_phoneInfoChanged(), beginScreen(), camAnimating(), camCapture(), camLoadTimer() (+35 more)
+Nodes (49): ble_connected(), ble_historyCount(), ble_historyDelete(), ble_markRead(), ble_musicControl(), header_signature(), infoSignature(), settingsSignature() (+41 more)
 
 ### Community 18 - "settings_hiscore"
 Cohesion: 0.22
 Nodes (11): draw(), drawReady(), saveHi(), boardFull(), drawReady(), place(), games_centerText(), games_drawOver() (+3 more)
 
-### Community 19 - "TttMode"
-Cohesion: 0.67
-Nodes (3): TttMode, MODE_2P, MODE_CPU
+### Community 19 - "ble_isIphone"
+Cohesion: 0.14
+Nodes (23): ble_callAnswer(), ble_date(), ble_isIphone(), ble_musicProgress(), ble_navActive(), ble_phoneBattery(), ble_setLowPowerLink(), ble_unreadCount() (+15 more)
 
 ### Community 20 - "ota.cpp"
-Cohesion: 0.07
-Nodes (17): colonOn(), drawClock(), drawInfoText(), markAppValid(), draw(), drawQr(), drawStatus(), handleFirmwareDone() (+9 more)
+Cohesion: 0.10
+Nodes (19): draw(), drawQr(), drawStatus(), handleFirmwareDone(), handleFirmwareUpload(), handleFramesDone(), handleTextGet(), handleTextSet() (+11 more)
 
 ### Community 21 - "WeatherCache"
 Cohesion: 0.29
@@ -161,24 +165,37 @@ Nodes (6): WeatherCache, city, count, items, savedAt, time
 Cohesion: 0.29
 Nodes (7): SyncState, SYNC_ASKING, SYNC_FAIL, SYNC_IDLE, SYNC_NOCONN, SYNC_NOTIME, SYNC_OK
 
+### Community 23 - "ble_update"
+Cohesion: 0.25
+Nodes (9): ble_restartRadio(), ble_running(), ble_update(), saveWeatherCache(), stopAll(), tuneBlePower(), ios_begin(), ios_running() (+1 more)
+
+### Community 25 - "RawNotif"
+Cohesion: 0.40
+Nodes (5): RawNotif, app, icon, msg, title
+
+### Community 26 - "AmsUpdate"
+Cohesion: 0.50
+Nodes (4): AmsUpdate, attr, entity, value
+
 ## Knowledge Gaps
-- **97 isolated node(s):** `icon`, `app`, `title`, `msg`, `savedAt` (+92 more)
-  These have ≤1 connection - possible missing edges. (Counts symbols only; 158 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **99 isolated node(s):** `icon`, `app`, `title`, `msg`, `savedAt` (+94 more)
+  These have ≤1 connection - possible missing edges. (Counts symbols only; 166 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **3 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `SettingItem` connect `SettingItem` to `menu.cpp`?**
-  _High betweenness centrality (0.050) - this node is a cross-community bridge._
-- **Are the 32 inferred relationships involving `oled_flush()` (e.g. with `anim_update()` and `drawFrame()`) actually correct?**
-  _`oled_flush()` has 32 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+- **Are the 34 inferred relationships involving `oled_flush()` (e.g. with `anim_update()` and `drawFrame()`) actually correct?**
+  _`oled_flush()` has 34 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `icon`, `app`, `title` to the rest of the system?**
-  _97 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _99 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `ble_link.cpp` be split into smaller, more focused modules?**
-  _Cohesion score 0.06164383561643835 - nodes in this community are weakly interconnected._
-- **Why does `oled_flush()` connect `menu.cpp` to `ble_link.cpp`, `settings.cpp`, `frames_store.cpp`, `game_duel.cpp`, `game_hitung.cpp`, `game_pong.cpp`, `game_ttt.cpp`, `game_dino.cpp`, `game_flappy.cpp`, `phone.cpp`, `settings_hiscore`, `ota.cpp`?**
-  _High betweenness centrality (0.034) - this node is a cross-community bridge._
-- **Are the 25 inferred relationships involving `loopBody()` (e.g. with `anim_isPlaying()` and `anim_update()`) actually correct?**
-  _`loopBody()` has 25 INFERRED edges - model-reasoned connections that need verification._
+  _Cohesion score 0.07948717948717948 - nodes in this community are weakly interconnected._
+- **Why does `loopBody()` connect `menu.cpp` to `settings.cpp`, `frames_store.cpp`, `game_duel.cpp`, `game_pong.cpp`, `games.cpp`, `home.cpp`, `remote_hid.cpp`, `phone.cpp`, `ble_isIphone`, `ota.cpp`, `ble_update`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
+- **Are the 27 inferred relationships involving `loopBody()` (e.g. with `anim_isPlaying()` and `anim_update()`) actually correct?**
+  _`loopBody()` has 27 INFERRED edges - model-reasoned connections that need verification._
 - **Should `menu.cpp` be split into smaller, more focused modules?**
-  _Cohesion score 0.10828796128251664 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06609195402298851 - nodes in this community are weakly interconnected._

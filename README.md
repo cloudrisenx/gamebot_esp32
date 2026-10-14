@@ -6,7 +6,7 @@ atau iPhone lewat Bluetooth bawaan), ditambah animasi, remote kamera, dan 7 game
 Firmware diperbarui tanpa kabel lewat **OTA WiFi**.
 
 Versi firmware ada di [`src/version.h`](src/version.h) (`FW_VERSION`). Riwayat fitur per versi dan ceklist uji
-di perangkat ada di [`RIWAYAT_PENGEMBANGAN.md`](RIWAYAT_PENGEMBANGAN.md).
+di perangkat ada di [`RIWAYAT_PENGEMBANGAN.md`](RIWAYAT_PENGEMBANGAN.md); rencana berikutnya di [`ROADMAP.md`](ROADMAP.md).
 
 ---
 
@@ -43,6 +43,7 @@ Library dipasang otomatis oleh PlatformIO dari `lib_deps` di [`platformio.ini`](
 
 **Beranda & jam**
 - Jam besar, tanggal, status BT + baterai HP, jumlah notifikasi belum dibaca, cuaca / navigasi aktif.
+- Tombol: L = Notifikasi, R = Animasi, OK = Menu, BACK = layar mati.
 - Jam disinkron dari HP (Chronos / iPhone CTS) setiap tersambung; **Setting > Jam**: Sync HP sekarang atau atur manual.
 - Jam & cuaca terakhir disimpan: setelah mati/restart jam tampil sebagai perkiraan (tanda `~`), bukan `--:--`.
 
@@ -55,6 +56,9 @@ Library dipasang otomatis oleh PlatformIO dari `lib_deps` di [`platformio.ini`](
 
 **Animasi** — animasi boot & menu dari partisi `frames` (format FRM1/FRM2 terkompresi), dibuat dengan
 `tools/make_frames.py` dari GIF / PNG / frame lama, diunggah lewat halaman OTA.
+
+**Teks** — running text besar di menu utama (kiri/kanan = kecepatan, OK = jeda). Isi teks (maks 200 karakter)
+diatur lewat halaman OTA, tab **Teks**.
 
 **Game** (menu Game, hi-score tersimpan)
 | Game | Mode |
@@ -77,10 +81,12 @@ Pop-up WhatsApp ditahan selama di menu Game (tetap masuk riwayat); panggilan tet
 
 **Setting** — notif pop-up, Bluetooth on/off, restart Bluetooth, mode HP (Android/iPhone), jam, layar mati,
 auto sleep, malam, kecerahan, **OLED I2C** (800/400/200 kHz) & **Uji OLED** (pola uji + statistik error I2C),
-animasi boot, reset hi-score, tidur sekarang, update OTA, panduan iPhone, hapus pairing, info.
+animasi boot, reset hi-score, tidur sekarang, **Restart**, **Mode flash** (reboot ke mode download untuk flash USB tanpa tombol BOOT), **Reset data** (hapus semua setting, hi-score,
+jam tersimpan, teks, dan pairing; animasi tetap), update OTA, panduan iPhone, hapus pairing, info.
 
 **Update OTA** — Setting > Update OTA menyalakan WiFi AP `cute_device_OTA`; sambungkan HP lalu buka
-`http://192.168.4.1` (atau pindai QR di layar) untuk mengunggah `firmware_ota.bin` atau `frames.bin`.
+`http://192.168.4.1` (atau pindai QR di layar) untuk mengunggah `firmware_ota.bin` atau `frames.bin`,
+dan mengubah isi running text (tab Teks).
 
 ## Cara pakai di Android
 
