@@ -5,6 +5,7 @@
 #include "buttons.h"
 #include "ble_link.h"
 #include "remote_hid.h"
+#include "settings.h"
 #include <Preferences.h>
 #include "screen.h"
 
@@ -383,7 +384,7 @@ static bool drawHidStatus() {
   const char *l[4] = {nullptr, nullptr, nullptr, nullptr};
   if (remote_bondError()) { l[0] = "Gagal siapkan"; l[1] = "pairing."; l[2] = "Lihat log"; l[3] = "Serial"; }
   else if (remote_rejectedFull()) { l[0] = "Memori pairing"; l[1] = "penuh (3 HP)"; l[2] = "Lupakan HP lama"; l[3] = "lalu coba lagi"; }
-  else if (!remote_connected()) { l[0] = "Pair di"; l[1] = "Bluetooth HP:"; l[2] = DEVICE_NAME; l[3] = "Remote"; }
+  else if (!remote_connected()) { l[0] = "Pair di"; l[1] = "Bluetooth HP:"; static String bt; bt = settings_bleName(); l[2] = bt.c_str(); l[3] = "Remote"; }
   else return false;
   static const int Y[4] = {14, 23, 34, 43};
   for (int i = 0; i < 4; i++) {

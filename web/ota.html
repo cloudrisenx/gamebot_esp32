@@ -42,8 +42,8 @@ button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 </style></head>
 <body><main>
 <div class="tip">Halaman tidak terbuka? Matikan data seluler, lalu buka <b>http://192.168.4.1</b><br>Tidak bisa memilih file? Buka di Chrome/Safari.</div>
-<h1>cute_device Update</h1>
-<nav class="tabs"><button id="tabA" class="on">Animasi</button><button id="tabT">Teks</button><button id="tabF">Firmware</button></nav>
+<h1><span id="devTitle">cute_device</span> Update</h1>
+<nav class="tabs"><button id="tabA" class="on">Animasi</button><button id="tabT">Teks</button><button id="tabF">Firmware</button><button id="tabD">Perangkat</button></nav>
 
 <div id="paneA">
 <label class="drop"><input type="file" id="file" multiple
@@ -86,6 +86,24 @@ button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 </section>
 <button id="txSend">Simpan teks</button>
 <div id="txMsg"></div>
+</div>
+
+<div id="paneD" hidden>
+<section class="card">
+<label for="dvDev">Nama device (teks di jam)</label>
+<input id="dvDev" maxlength="20" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0 10px">
+<label for="dvBle">Nama Bluetooth (Android/Chronos & iPhone)</label>
+<input id="dvBle" maxlength="20" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0 10px">
+<label for="dvSsid">Nama WiFi OTA</label>
+<input id="dvSsid" maxlength="32" autocomplete="off" style="width:100%;box-sizing:border-box;margin:6px 0 10px">
+<label for="dvPw">Password WiFi OTA baru</label>
+<input id="dvPw" type="password" maxlength="63" autocomplete="new-password" placeholder="kosong = tidak diubah" style="width:100%;box-sizing:border-box;margin:6px 0 4px">
+<p class="kv">Nama 1-20 karakter, WiFi 1-32, password 8-63. Hanya huruf/angka/tanda baca biasa. Kosongkan nama = kembali ke bawaan.</p>
+<p class="kv warn">Berlaku setelah restart. Ganti nama WiFi/password: HP harus sambung ulang ke WiFi baru. Ganti nama Bluetooth: nama di HP berubah setelah pairing ulang / refresh daftar Bluetooth.</p>
+</section>
+<button id="dvSave">Simpan</button>
+<button id="dvSaveR" class="sec">Simpan &amp; restart</button>
+<div id="dvMsg"></div>
 </div>
 
 <div id="paneF" hidden>
@@ -731,10 +749,12 @@ if (typeof document !== 'undefined') (function () {
   function showTab(tab) {
     if (tab === true) tab = 'f'; else if (tab === false) tab = 'a';
     $('paneA').hidden = tab !== 'a'; $('paneT').hidden = tab !== 't'; $('paneF').hidden = tab !== 'f';
+    $('paneD').hidden = tab !== 'd'; $('tabD').className = tab === 'd' ? 'on' : '';
     $('tabA').className = tab === 'a' ? 'on' : ''; $('tabT').className = tab === 't' ? 'on' : '';
     $('tabF').className = tab === 'f' ? 'on' : '';
     if (tab === 'a') { if (S) play(); } else stopPlay();
     if (tab === 'f') loadInfo();
+    if (tab === 'd') loadInfo(function (j) { $('dvDev').value = j.dev || ''; $('dvBle').value = j.ble || ''; $('dvSsid').value = j.ssid || ''; $('dvPw').value = ''; });
     if (tab === 't') loadText();
   }
 
@@ -752,6 +772,7 @@ if (typeof document !== 'undefined') (function () {
   function loadInfo(cb) {
     fetch('/info', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       INFO = j;
+      if (j.dev) $('devTitle').textContent = j.dev;
       $('fwNow').textContent = j.fw + ' (' + j.app + ')';
       if (cb) cb(j);
     }).catch(function () { if (!cb) $('fwNow').textContent = 'tidak diketahui'; });
@@ -778,10 +799,10 @@ if (typeof document !== 'undefined') (function () {
   function waitRestart() {
     var left = 15, oldApp = INFO && INFO.app;
     var tick = setInterval(function () {
-      fwMsg('Perangkat restart... ' + left + ' dtk. Sambungkan lagi ke WiFi cute_device_OTA bila perlu.', 'ok');
+      fwMsg('Perangkat restart... ' + left + ' dtk. Sambungkan lagi ke WiFi ' + (INFO && INFO.ssid || 'OTA') + ' bila perlu.', 'ok');
       if (--left < 0) {
         clearInterval(tick);
-        fwMsg('Menunggu perangkat... Buka Setting > Update OTA di perangkat, lalu sambungkan lagi ke WiFi cute_device_OTA.', 'ok');
+        fwMsg('Menunggu perangkat... Buka Setting > Update OTA di perangkat, lalu sambungkan lagi ke WiFi ' + (INFO && INFO.ssid || 'OTA') + '.', 'ok');
         var tries = 0;
         pollTimer = setInterval(function () {
           if (++tries > 60) { clearInterval(pollTimer); return; }
@@ -810,6 +831,29 @@ if (typeof document !== 'undefined') (function () {
   $('tabA').addEventListener('click', function () { showTab(false); });
   $('tabF').addEventListener('click', function () { showTab(true); });
   $('tabT').addEventListener('click', function () { showTab('t'); });
+  $('tabD').addEventListener('click', function () { showTab('d'); });
+  function dvMsg(t, cls) { $('dvMsg').textContent = t; $('dvMsg').className = cls || ''; }
+  // Sama dengan validasi di jam (settings_setNames): ASCII cetak, panjang min..max
+  function asciiOk(s, lo, hi) { return s.length >= lo && s.length <= hi && /^[ -~]*$/.test(s); }
+  function saveDevice(restart) {
+    var dev = $('dvDev').value, ble = $('dvBle').value, ssid = $('dvSsid').value, pw = $('dvPw').value;
+    var err = dev && !asciiOk(dev, 1, 20) ? 'Nama device: 1-20 karakter (huruf/angka/tanda baca biasa)'
+      : ble && !asciiOk(ble, 1, 20) ? 'Nama Bluetooth: 1-20 karakter (huruf/angka/tanda baca biasa)'
+      : ssid && !asciiOk(ssid, 1, 32) ? 'Nama WiFi: 1-32 karakter (huruf/angka/tanda baca biasa)'
+      : pw && !asciiOk(pw, 8, 63) ? 'Password WiFi: 8-63 karakter (huruf/angka/tanda baca biasa)' : '';
+    if (err) { dvMsg(err, 'err'); return; }
+    $('dvSave').disabled = $('dvSaveR').disabled = true; dvMsg('Menyimpan...');
+    var body = 'dev=' + encodeURIComponent(dev) + '&ble=' + encodeURIComponent(ble) + '&ssid=' + encodeURIComponent(ssid) +
+               '&pw=' + encodeURIComponent(pw) + (restart ? '&restart=1' : '');
+    fetch('/device', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+      .then(function (r) { return r.text().then(function (m) {
+        dvMsg(r.ok && (ssid || pw) ? m + ' Sambungkan HP ke WiFi ' + (ssid || '(bawaan)') + ' dengan password baru bila diubah.' : m, r.ok ? 'ok' : 'err');
+        if (r.ok) $('dvPw').value = ''; }); })
+      .catch(function () { dvMsg('Gagal: jam tidak terjangkau.', 'err'); })
+      .then(function () { $('dvSave').disabled = $('dvSaveR').disabled = false; });
+  }
+  $('dvSave').addEventListener('click', function () { saveDevice(false); });
+  $('dvSaveR').addEventListener('click', function () { saveDevice(true); });
   $('txIn').addEventListener('input', function () { $('txCount').textContent = $('txIn').value.length; });
   $('txSend').addEventListener('click', function () {
     var t = $('txIn').value.trim();

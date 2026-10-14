@@ -2,6 +2,7 @@
 #include <NimBLEDevice.h>
 #include "ble_link.h"
 #include "power.h"
+#include "settings.h"
 
 // =====================================================================================
 // UUID & konstanta layanan Apple
@@ -455,7 +456,7 @@ static void processEntityUpdates() {
 // API publik
 // =====================================================================================
 void ios_begin() {
-  NimBLEDevice::init(IOS_BLE_NAME);
+  NimBLEDevice::init(settings_bleName().c_str());
   // Just Works + bonding + Secure Connections: iPhone menampilkan dialog "Pasangkan"
   NimBLEDevice::setSecurityAuth(true, false, true);
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
@@ -474,7 +475,7 @@ void ios_begin() {
   memcpy(solicit + 2, ancsUuid.getValue(), 16);  // NimBLE menyimpan UUID 128-bit little-endian
   adv.addData(solicit, sizeof(solicit));
   adv.setAppearance(APPEARANCE_GENERIC_WATCH);
-  scan.setName(IOS_BLE_NAME);
+  scan.setName(settings_bleName().c_str());
 
   NimBLEAdvertising *a = NimBLEDevice::getAdvertising();
   a->setAdvertisementData(adv);
@@ -483,7 +484,7 @@ void ios_begin() {
   a->setMaxInterval(ADV_MAX_UNITS);
   a->start();
   running = true;
-  Serial.printf("[iOS] advertising sebagai \"%s\", bond tersimpan: %d\n", IOS_BLE_NAME, NimBLEDevice::getNumBonds());
+  Serial.printf("[iOS] advertising sebagai \"%s\", bond tersimpan: %d\n", settings_bleName().c_str(), NimBLEDevice::getNumBonds());
 }
 
 void ios_stop() {
@@ -567,7 +568,7 @@ bool ios_deleteBonds() {
   // (mis. Bluetooth OFF), nyalakan sebentar lalu matikan lagi; jika sudah aktif (iPhone
   // atau Chronos), biarkan apa adanya.
   bool initHere = !NimBLEDevice::isInitialized();
-  if (initHere) NimBLEDevice::init(IOS_BLE_NAME);
+  if (initHere) NimBLEDevice::init(settings_bleName().c_str());
   bool ok = NimBLEDevice::deleteAllBonds();
   if (initHere) NimBLEDevice::deinit(true);
   return ok;

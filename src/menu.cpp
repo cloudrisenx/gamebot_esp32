@@ -98,12 +98,13 @@ static const char *SETTING_LABELS[SI_COUNT] = {
 static const char *PHONE_OPTS[PHONE_MODE_COUNT] = {"Android", "iPhone"};
 
 // Panduan pairing iPhone (maks 21 karakter/baris, sama dengan PANDUAN_IPHONE.md)
+static const char GUIDE_NAME_LINE[] = "   cute_device";
 static const char *const GUIDE_LINES[] = {
   "1. Setting > Mode HP",
   "   pilih iPhone",
   "2. iPhone: Pengaturan",
   "   > Bluetooth >",
-  "   cute_device",
+  GUIDE_NAME_LINE,
   "   > Pasangkan",
   "3. Izinkan: Bagikan",
   "   Notifikasi Sistem",
@@ -688,7 +689,9 @@ static void drawGuide() {
   display.setTextColor(SSD1306_WHITE);
   for (int i = 0; i < GUIDE_ROWS && guideTop + i < GUIDE_COUNT; i++) {
     display.setCursor(0, 13 + i * 10);
-    display.print(GUIDE_LINES[guideTop + i]);
+    // baris nama Bluetooth mengikuti nama yang diatur di halaman OTA
+    if (GUIDE_LINES[guideTop + i] == GUIDE_NAME_LINE) display.print("   " + settings_bleName());
+    else display.print(GUIDE_LINES[guideTop + i]);
   }
   // Penanda scroll di kanan
   if (guideTop > 0) display.fillTriangle(124, 13, 127, 13, 125, 11, SSD1306_WHITE);
@@ -1111,7 +1114,8 @@ AppState nav_screen_update(bool redraw) {
     display.setCursor(0, 30);
     display.print("Buka app Chronos");
     display.setCursor(0, 42);
-    display.print("Nama: " BLE_NAME);
+    display.print("Nama: ");
+    display.print(settings_bleName());
   } else {
     Navigation &nav = ble_nav();
     if (!nav.active) {

@@ -310,6 +310,7 @@ void ble_update() {
     ios_loop();
   } else {
     if (wanted && !watch.isRunning()) {
+      watch.setName(settings_bleName());
       watch.begin();
       tuneBlePower();
     } else if (!wanted && watch.isRunning()) {

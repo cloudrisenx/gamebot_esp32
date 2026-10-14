@@ -86,7 +86,9 @@ jam tersimpan, teks, dan pairing; animasi tetap), update OTA, panduan iPhone, ha
 
 **Update OTA** — Setting > Update OTA menyalakan WiFi AP `cute_device_OTA`; sambungkan HP lalu buka
 `http://192.168.4.1` (atau pindai QR di layar) untuk mengunggah `firmware_ota.bin` atau `frames.bin`,
-dan mengubah isi running text (tab Teks).
+dan mengubah isi running text (tab Teks). Tab **Perangkat** mengatur nama device (teks di jam), nama
+Bluetooth (Android/Chronos/iPhone; Remote = nama + " Remote"), nama WiFi OTA, dan password WiFi OTA (8-63 karakter);
+berlaku setelah restart, kosongkan nama = kembali ke `cute_device`. **Reset data** mengembalikan semuanya ke bawaan.
 
 ## Cara pakai di Android
 
