@@ -93,8 +93,8 @@ Cara cepat: `tools\flash_lightsleep.ps1` (mengerjakan langkah di bawah). Manual:
 path tanpa spasi, core terpisah. JANGAN lewat tombol Build/Upload VS Code untuk env ini:
 
 ```powershell
-cd C:\cute_ls
-$env:PLATFORMIO_CORE_DIR = "$env:USERPROFILE\.platformio-ls"
+cd G:\esp32_lightsleep\wt
+$env:PLATFORMIO_CORE_DIR = 'G:\esp32_lightsleep\pio'
 pio run -e lightsleep
 git checkout -- web/ota.html   # build menambah byte NUL di akhir file ini
 ```

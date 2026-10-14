@@ -6,13 +6,13 @@
 #   powershell -ExecutionPolicy Bypass -File tools\flash_lightsleep.ps1 -NoFlash    # build saja
 #
 # Kenapa tidak lewat tombol PlatformIO: pioarduino gagal di path berspasi dan menimpa PlatformIO global,
-# jadi build dilakukan di worktree C:\cute_ls dengan core terpisah (%USERPROFILE%\.platformio-ls).
+# jadi build dilakukan di worktree G:\esp32_lightsleep\wt dengan core terpisah G:\esp32_lightsleep\pio (path tanpa spasi).
 # Hanya app (0x10000) yang di-flash: jam harus sudah memakai partisi baru (lihat UJI.md untuk flash penuh).
 param([string]$Port = 'COM7', [switch]$NoFlash)
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path $PSScriptRoot -Parent
-$wt = 'C:\cute_ls'
+$wt = 'G:\esp32_lightsleep\wt'
 $out = Join-Path $repo 'lightsleepbuild'
 $pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"
 
@@ -26,7 +26,7 @@ if ($LASTEXITCODE) { throw "Gagal menyamakan $wt dengan main (ada perubahan loka
 # 2. Build dengan core terpisah; PlatformIO global tidak disentuh
 Write-Host '== 2/3 build env lightsleep (build penuh pertama kali bisa +-25 menit)'
 $oldCore = $env:PLATFORMIO_CORE_DIR
-$env:PLATFORMIO_CORE_DIR = "$env:USERPROFILE\.platformio-ls"
+$env:PLATFORMIO_CORE_DIR = 'G:\esp32_lightsleep\pio'
 $env:PYTHONIOENCODING = 'utf-8'
 Push-Location $wt
 try {
