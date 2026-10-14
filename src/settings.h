@@ -25,17 +25,11 @@ void settings_resetHiscores();
 
 // Opsi pilihan disimpan sebagai indeks; OK pada menu Setting memutar indeks.
 #define SCREEN_OPT_COUNT 4    // 15s / 30s / 60s / OFF
-#define SLEEP_OPT_COUNT 4     // 2 / 5 / 10 mnt deep sleep / Jaga notif (tanpa deep sleep)
 #define CONTRAST_OPT_COUNT 3  // Rendah / Sedang / Tinggi
 
 uint8_t settings_screenIdx();
 void settings_setScreenIdx(uint8_t idx);
 uint32_t settings_screenTimeoutMs();  // 0 = tidak pernah
-
-uint8_t settings_sleepIdx();
-void settings_setSleepIdx(uint8_t idx);
-uint32_t settings_sleepTimeoutMs();   // 0 = tidak pernah deep sleep (Jaga notif)
-const char *settings_sleepName();     // "2mnt" / "5mnt" / "10mnt" / "Jaga notif"
 
 // Jadwal tidur malam: di dalam jendela [mulai, akhir) jam deep sleep & bangun sendiri di jam akhir
 // Waktu dalam menit sejak 00:00 (boleh melewati tengah malam)
@@ -71,9 +65,5 @@ uint8_t settings_contrastValue();
 
 bool settings_bootAnim();
 void settings_setBootAnim(bool on);
-
-// Light sleep otomatis saat layar mati (hanya firmware env lightsleep; lihat power.h)
-bool settings_lightSleep();
-void settings_setLightSleep(bool on);
 
 String settings_otaPassword();  // 8 karakter acak, dibuat sekali lalu disimpan

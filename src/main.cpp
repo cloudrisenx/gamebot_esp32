@@ -237,7 +237,6 @@ void setup() {
   power_begin();
   buttons_begin();
   settings_begin();
-  Serial.printf("[POWER] mode tidur=%s\n", settings_sleepName());
 
   Wire.begin(I2C_SDA, I2C_SCL);
   // Clock dari Setting "OLED I2C" (800/400/200 kHz); tidak menjawab -> turun otomatis (screen.cpp)
@@ -300,8 +299,9 @@ static void loopBody() {
                          : (state == ST_ANIM && anim_isPlaying()) ? PR_KEEP_ANIM
                          : PR_NONE;
   power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA);
-  power_lightSleep(settings_lightSleep() && !power_screenOn() && keepAwake == PR_NONE && !popupActive &&
-                   !callShown && !gamePlaying && state != ST_OTA);
+  // Layar mati = selalu light sleep + BLE; deep sleep otomatis hanya jadwal Malam (power_update)
+  power_lightSleep(!power_screenOn() && keepAwake == PR_NONE && !popupActive && !callShown && !gamePlaying &&
+                   state != ST_OTA);
 
   // Layar baru menyala lagi: isi buffer saat mati tidak dikirim, jadi gambar ulang semuanya
   if (power_takeScreenWoke()) {
@@ -370,11 +370,9 @@ void loop() {
     if (slowInGame)
       Serial.printf("[HEALTH] PERINGATAN: putaran loop > %d ms saat game\n", LOOP_SLOW_WARN_MS);
     if (offLoops)
-      Serial.printf("[POWER] mode tidur=%s, layar mati: kerja loop rata-rata %.2f ms + idle %d ms\n",
-                    settings_sleepName(), offLoopUs / 1000.0f / offLoops, LOOP_IDLE_SCREEN_OFF_MS);
+      Serial.printf("[POWER] layar mati: kerja loop rata-rata %.2f ms\n", offLoopUs / 1000.0f / offLoops);
 #if LIGHT_SLEEP_SUPPORTED
-    Serial.printf("[PM] light sleep %s (setting %s), sebab bangun terakhir=%d\n",
-                  power_lightSleepActive() ? "aktif" : "ditahan", settings_lightSleep() ? "ON" : "OFF",
+    Serial.printf("[PM] light sleep %s, sebab bangun terakhir=%d\n", power_lightSleepActive() ? "aktif" : "ditahan",
                   (int)esp_sleep_get_wakeup_cause());
 #endif
     offLoops = offLoopUs = 0;

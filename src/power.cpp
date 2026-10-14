@@ -227,9 +227,6 @@ void power_update(PowerReason keepAwake, bool sleepAllowed) {
   if (screenOn && screenMs && idle >= screenMs / 2) setDim(true);
   if (screenOn && screenMs && idle >= screenMs) setScreen(false, PR_TIMEOUT);
 
-  uint32_t sleepMs = settings_sleepTimeoutMs();
-  if (sleepAllowed && sleepMs && idle >= sleepMs) enterDeepSleep();
-
   // Jadwal malam: layar sudah mati >= 1 mnt tanpa aktivitas -> deep sleep sampai jam akhir malam
   int nowMin;
   if (sleepAllowed && !screenOn && now - screenOffAt >= NIGHT_IDLE_MS && idle >= NIGHT_IDLE_MS &&

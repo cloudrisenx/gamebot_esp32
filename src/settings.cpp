@@ -5,9 +5,6 @@ static const uint16_t SCREEN_SEC[SCREEN_OPT_COUNT] = {15, 30, 60, 0};
 // Indeks 3 dulu bernama "OFF". Deep sleep mematikan Bluetooth (WA tidak bisa membangunkan jam) dan
 // light sleep otomatis tidak tersedia di core Arduino ini (CONFIG_PM_ENABLE tidak aktif), jadi
 // "Jaga notif" = tanpa deep sleep: BLE tetap tersambung, layar tetap mati sendiri.
-static const uint8_t SLEEP_MIN[SLEEP_OPT_COUNT] = {2, 5, 10, 0};
-static const char *const SLEEP_NAMES[SLEEP_OPT_COUNT] = {"2mnt", "5mnt", "10mnt", "Jaga notif"};
-static const uint8_t SLEEP_DEFAULT = 3;  // Jaga notif
 // Jadwal malam: menit sejak 00:00. Key lama "night" (indeks preset OFF/22-06/23-06/00-06) hanya dibaca
 // sekali untuk migrasi ke "nightOn"/"nightStart"/"nightEnd"; tidak dihapus.
 static const uint16_t LEGACY_NIGHT_START[4] = {22 * 60, 22 * 60, 23 * 60, 0};
@@ -22,7 +19,6 @@ static bool bt = true;
 static const char *HI_KEYS[GAME_COUNT] = {"hi_brk", "hi_dino", "hi_hitung", "hi_flap", "hi_pong", "hi_duel", "hi_ttt"};
 static uint32_t hiscore[GAME_COUNT];
 static uint8_t screenIdx = 1;    // 30s
-static uint8_t sleepIdx = SLEEP_DEFAULT;
 static uint8_t contrastIdx = 1;  // Sedang
 static const uint32_t I2C_HZ[I2C_OPT_COUNT] = {800000, 400000, 200000};
 static uint8_t i2cIdx = 0;  // 800 kHz (sama dengan sebelum ada setting)
@@ -35,7 +31,6 @@ static uint8_t hitungLv5Idx = 2;  // 1,2s
 static const char *const HITUNG_DIST_NAMES[HITUNG_DIST_OPT_COUNT] = {"Tanpa", "Sedikit", "Sedang", "Banyak"};
 static uint8_t hitungDistIdx = 2;  // Sedang
 static bool bootAnim = true;
-static bool lightSleep = true;
 
 void settings_begin() {
   prefs.begin("cfg", false);
@@ -47,7 +42,6 @@ void settings_begin() {
   if (prefs.isKey("hi")) prefs.remove("hi");  // high score Flappy Bird (game sudah dihapus)
   for (int g = 0; g < GAME_COUNT; g++) hiscore[g] = prefs.getUInt(HI_KEYS[g], 0);
   screenIdx = prefs.getUChar("scr", 1) % SCREEN_OPT_COUNT;
-  sleepIdx = prefs.getUChar("slp", SLEEP_DEFAULT) % SLEEP_OPT_COUNT;
   if (prefs.isKey("nightOn")) {
     nightOn = prefs.getBool("nightOn", false);
     nightStart = prefs.getUShort("nightStart", 22 * 60) % (24 * 60);
@@ -78,7 +72,6 @@ void settings_begin() {
     if (HITUNG_LV5_MS[i] == lv5Ms) hitungLv5Idx = i;
   hitungDistIdx = prefs.getUChar("hitDist", 2) % HITUNG_DIST_OPT_COUNT;
   bootAnim = prefs.getBool("anim", true);
-  lightSleep = prefs.getBool("lsleep", true);
 }
 
 NotifMode settings_notifMode() { return notifMode; }
@@ -122,17 +115,6 @@ void settings_setScreenIdx(uint8_t idx) {
 
 uint32_t settings_screenTimeoutMs() { return SCREEN_SEC[screenIdx] * 1000UL; }
 
-uint8_t settings_sleepIdx() { return sleepIdx; }
-
-void settings_setSleepIdx(uint8_t idx) {
-  sleepIdx = idx % SLEEP_OPT_COUNT;
-  prefs.putUChar("slp", sleepIdx);
-  Serial.printf("[POWER] mode tidur=%s\n", SLEEP_NAMES[sleepIdx]);
-}
-
-uint32_t settings_sleepTimeoutMs() { return SLEEP_MIN[sleepIdx] * 60000UL; }
-
-const char *settings_sleepName() { return SLEEP_NAMES[sleepIdx]; }
 
 bool settings_nightOn() { return nightOn; }
 uint16_t settings_nightStartMin() { return nightStart; }
@@ -197,13 +179,6 @@ bool settings_bootAnim() { return bootAnim; }
 void settings_setBootAnim(bool on) {
   bootAnim = on;
   prefs.putBool("anim", on);
-}
-
-bool settings_lightSleep() { return lightSleep; }
-
-void settings_setLightSleep(bool on) {
-  lightSleep = on;
-  prefs.putBool("lsleep", on);
 }
 
 String settings_otaPassword() {

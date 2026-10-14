@@ -71,8 +71,8 @@ Pop-up WhatsApp ditahan selama di menu Game (tetap masuk riwayat); panggilan tet
 
 **Daya**
 - Layar redup lalu mati otomatis; BACK di Beranda = layar mati.
-- Auto sleep: 2/5/10 menit deep sleep, atau **Jaga notif** (tanpa deep sleep, BLE tetap tersambung, loop
-  dibangunkan interrupt tombol/notifikasi, parameter koneksi BLE dilonggarkan saat layar mati).
+- Layar mati = **light sleep + BLE** (branch lightsleep): BLE tetap tersambung, tombol/notifikasi membangunkan
+  seketika, parameter koneksi BLE dilonggarkan. Tidak ada deep sleep otomatis selain jadwal Malam.
 - Jadwal **Malam**: deep sleep total di jam yang diatur sendiri, bangun otomatis di jam selesai.
 
 **Setting** — notif pop-up, Bluetooth on/off, restart Bluetooth, mode HP (Android/iPhone), jam, layar mati,
