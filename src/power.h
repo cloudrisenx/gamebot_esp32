@@ -42,3 +42,14 @@ void power_loopWaitBegin();                       // panggil sekali dari setup()
 void power_loopWait(uint32_t ms);
 void power_loopWake();                            // aman dipanggil dari task NimBLE
 bool power_buttonRecentlyChanged(uint32_t ms);    // ada perubahan pin tombol dalam ms terakhir
+
+// Light sleep otomatis (esp_pm): hanya bila sdkconfig punya PM + tickless idle (env lightsleep)
+#if defined(CONFIG_PM_ENABLE) && defined(CONFIG_FREERTOS_USE_TICKLESS_IDLE)
+#define LIGHT_SLEEP_SUPPORTED 1
+#else
+#define LIGHT_SLEEP_SUPPORTED 0
+#endif
+// Panggil setiap loop. allowed = layar mati & tidak ada yang butuh CPU penuh / WiFi / interrupt tepi.
+// Selama allowed: CPU boleh turun ke 40 MHz dan chip light sleep saat idle; tombol membangunkan lewat level LOW.
+void power_lightSleep(bool allowed);
+bool power_lightSleepActive();

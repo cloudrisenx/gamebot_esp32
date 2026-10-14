@@ -6,12 +6,17 @@
 #include <esp_task_wdt.h>
 #include <esp_sleep.h>
 #include <driver/gpio.h>
+#include <esp_pm.h>
 #include "settings.h"
 #include "ble_link.h"
 
 extern Adafruit_SSD1306 display;
 
 static bool wokeFromSleep = false;
+#if LIGHT_SLEEP_SUPPORTED
+static esp_pm_lock_handle_t lsLock = nullptr, cpuLock = nullptr;
+#endif
+static bool lsActive = false;
 static bool wokeByTimer = false;
 static uint32_t screenOffAt = 0;  // millis() saat layar mati (jadwal malam: tidur 1 mnt sesudahnya)
 static esp_reset_reason_t resetReason;
@@ -42,6 +47,20 @@ void power_begin() {
 #endif
   esp_task_wdt_add(NULL);  // loop task (setup() & loop() berjalan di task yang sama)
   lastActivity = millis();
+#if LIGHT_SLEEP_SUPPORTED
+  // Kunci dipegang sejak awal: perilaku sama dengan firmware lama sampai power_lightSleep(true)
+  esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "awake", &lsLock);
+  esp_pm_lock_create(ESP_PM_CPU_FREQ_MAX, 0, "cpu", &cpuLock);
+  esp_pm_lock_acquire(lsLock);
+  esp_pm_lock_acquire(cpuLock);
+  esp_pm_config_t pm = {};
+  pm.max_freq_mhz = getCpuFrequencyMhz();  // CPU_MHZ dari setup()
+  pm.min_freq_mhz = 40;                    // XTAL
+  pm.light_sleep_enable = true;
+  esp_err_t e = esp_pm_configure(&pm);
+  esp_sleep_enable_gpio_wakeup();
+  Serial.printf("[PM] configure %u-%u MHz, light sleep: %s\n", pm.min_freq_mhz, pm.max_freq_mhz, esp_err_to_name(e));
+#endif
 }
 
 void power_feed() { esp_task_wdt_reset(); }
@@ -249,3 +268,24 @@ void power_loopWake() {
 }
 
 bool power_buttonRecentlyChanged(uint32_t ms) { return xTaskGetTickCount() - lastEdgeTick < pdMS_TO_TICKS(ms); }
+
+void power_lightSleep(bool allowed) {
+#if LIGHT_SLEEP_SUPPORTED
+  if (allowed) buttons_armWake(true);  // pin yang baru dilepas dipersenjatai lagi
+  if (allowed == lsActive) return;
+  lsActive = allowed;
+  if (allowed) {
+    esp_pm_lock_release(cpuLock);
+    esp_pm_lock_release(lsLock);
+  } else {
+    esp_pm_lock_acquire(lsLock);
+    esp_pm_lock_acquire(cpuLock);
+    buttons_armWake(false);
+  }
+  Serial.printf("[PM] light sleep %s\n", allowed ? "boleh" : "ditahan");
+#else
+  (void)allowed;
+#endif
+}
+
+bool power_lightSleepActive() { return lsActive; }

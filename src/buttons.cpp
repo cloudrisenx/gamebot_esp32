@@ -1,6 +1,7 @@
 #include "buttons.h"
 #include <esp_timer.h>
 #include <driver/gpio.h>
+#include <hal/gpio_ll.h>
 
 // Urutan sesuai enum Btn: UP, DOWN, OK, BACK
 static const uint8_t PINS[BTN_COUNT] = {3, 1, 10, 6};
@@ -17,6 +18,7 @@ void buttons_begin() {
     rawState[i] = stableState[i] = digitalRead(PINS[i]);
     lastChange[i] = millis();
     pending[i] = false;
+    gpio_sleep_sel_dis((gpio_num_t)PINS[i]);  // pull-up tetap aktif saat light sleep (PM_SLP_DISABLE_GPIO)
   }
 }
 
@@ -79,11 +81,18 @@ static volatile uint8_t tapSeq[BTN_COUNT];      // naik tiap tap sah
 static volatile uint8_t fallSeq[BTN_COUNT];     // naik tiap tekan sah (tepi turun setelah filter pantulan)
 static uint8_t chordUsed[BTN_COUNT];           // fallSeq yang sudah dipakai sebuah chord (loop saja)
 static uint8_t tapReported[BTN_COUNT];         // tapSeq saat double-tap terakhir dilaporkan (loop saja)
+static volatile bool armed[BTN_COUNT];         // pin sedang wakeup level LOW (buttons_armWake)
 
 static void IRAM_ATTR onPinEdge(void *arg) {
   int i = (int)(intptr_t)arg;
   uint64_t t = esp_timer_get_time();
   portENTER_CRITICAL_ISR(&stampMux);
+  if (armed[i]) {
+    // Level LOW akan memicu ISR terus selama ditahan: kembali ke tepi (fungsi LL = inline, aman di ISR)
+    armed[i] = false;
+    gpio_ll_wakeup_disable(&GPIO, PINS[i]);
+    gpio_ll_set_intr_type(&GPIO, PINS[i], GPIO_INTR_ANYEDGE);
+  }
   if (gpio_get_level((gpio_num_t)PINS[i]) == 0) {
     // Tepi turun (ditekan). Duel: catat yang PERTAMA saja; pantulan kontak tidak menimpanya
     if (pressUs[i] == 0) pressUs[i] = t;
@@ -114,6 +123,22 @@ void buttons_attachWake(void (*isr)()) {
   wakeCb = isr;
   for (int i = 0; i < BTN_COUNT; i++)
     attachInterruptArg(digitalPinToInterrupt(PINS[i]), onPinEdge, (void *)(intptr_t)i, CHANGE);
+}
+
+void buttons_armWake(bool on) {
+  portENTER_CRITICAL(&stampMux);
+  for (int i = 0; i < BTN_COUNT; i++) {
+    gpio_num_t p = (gpio_num_t)PINS[i];
+    if (on && !armed[i] && gpio_get_level(p)) {  // hanya pin yang dilepas (HIGH)
+      gpio_wakeup_enable(p, GPIO_INTR_LOW_LEVEL);
+      armed[i] = true;
+    } else if (!on && armed[i]) {
+      gpio_wakeup_disable(p);
+      gpio_set_intr_type(p, GPIO_INTR_ANYEDGE);
+      armed[i] = false;
+    }
+  }
+  portEXIT_CRITICAL(&stampMux);
 }
 
 void btn_armTiming() {

@@ -20,3 +20,6 @@ void btn_tapSync();  // anggap semua tekan sebelumnya sudah dibaca (tap & chord)
 // Chord dari interrupt: true SEKALI bila a dan b ditekan (tekan baru) dengan selisih <= windowMs
 bool btn_chord(Btn a, Btn b, uint32_t windowMs);
 void buttons_clear();           // buang semua event yang belum dibaca
+// Light sleep: interrupt tepi tidak jalan saat tidur. on = pin yang sedang dilepas jadi wakeup level LOW
+// (dikembalikan ke interrupt tepi oleh ISR saat ditekan); off = semua kembali ke interrupt tepi.
+void buttons_armWake(bool on);

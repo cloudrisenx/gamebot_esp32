@@ -35,6 +35,7 @@ static uint8_t hitungLv5Idx = 2;  // 1,2s
 static const char *const HITUNG_DIST_NAMES[HITUNG_DIST_OPT_COUNT] = {"Tanpa", "Sedikit", "Sedang", "Banyak"};
 static uint8_t hitungDistIdx = 2;  // Sedang
 static bool bootAnim = true;
+static bool lightSleep = true;
 
 void settings_begin() {
   prefs.begin("cfg", false);
@@ -77,6 +78,7 @@ void settings_begin() {
     if (HITUNG_LV5_MS[i] == lv5Ms) hitungLv5Idx = i;
   hitungDistIdx = prefs.getUChar("hitDist", 2) % HITUNG_DIST_OPT_COUNT;
   bootAnim = prefs.getBool("anim", true);
+  lightSleep = prefs.getBool("lsleep", true);
 }
 
 NotifMode settings_notifMode() { return notifMode; }
@@ -195,6 +197,13 @@ bool settings_bootAnim() { return bootAnim; }
 void settings_setBootAnim(bool on) {
   bootAnim = on;
   prefs.putBool("anim", on);
+}
+
+bool settings_lightSleep() { return lightSleep; }
+
+void settings_setLightSleep(bool on) {
+  lightSleep = on;
+  prefs.putBool("lsleep", on);
 }
 
 String settings_otaPassword() {

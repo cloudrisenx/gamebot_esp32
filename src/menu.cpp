@@ -73,12 +73,12 @@ static const int MENU_COUNT = 5;
 static Carousel menuCar = {};
 
 enum SettingItem {
-  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_SLEEP, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_OTA,
+  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_SLEEP, SI_LSLEEP, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_OTA,
   SI_GUIDE, SI_UNPAIR, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
-  "Notif pop-up", "Bluetooth", "Restart BT", "Mode HP", "Jam", "Layar mati", "Auto sleep", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
+  "Notif pop-up", "Bluetooth", "Restart BT", "Mode HP", "Jam", "Layar mati", "Auto sleep", "Light sleep", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
   "Animasi boot", "Reset hi-score", "Tidur sekarang", "Update OTA",
   "Panduan iPhone", "Hapus pairing", "Info"
 };
@@ -459,6 +459,7 @@ static String settingValue(int item) {
       return ">";
     case SI_SCREEN:   return SCREEN_OPTS[settings_screenIdx()];
     case SI_SLEEP:    return settings_sleepName();
+    case SI_LSLEEP:   return !LIGHT_SLEEP_SUPPORTED ? "-" : settings_lightSleep() ? "ON" : "OFF";
     case SI_NIGHT: {
       char buf[12];
       settings_nightLabel(buf, sizeof(buf));
@@ -534,6 +535,7 @@ static void activateSetting(int item) {
       break;
     case SI_SCREEN:   settings_setScreenIdx(settings_screenIdx() + 1); break;
     case SI_SLEEP:    settings_setSleepIdx(settings_sleepIdx() + 1); break;
+    case SI_LSLEEP:   settings_setLightSleep(!settings_lightSleep()); break;
     case SI_NIGHT:
       nightVal[0] = settings_nightOn();
       nightVal[1] = settings_nightStartMin() / 60; nightVal[2] = settings_nightStartMin() % 60 / 5 * 5;

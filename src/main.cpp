@@ -7,6 +7,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <esp_ota_ops.h>
+#include <esp_sleep.h>
 
 #include "frames_store.h"
 #include "buttons.h"
@@ -56,6 +57,7 @@ const char FW_TAG[] __attribute__((used)) = "FWVER:" FW_VERSION ";";
 #define LOOP_IDLE_ACTIVE_MS 1    // game/animasi/boot/OTA/pop-up: tetap responsif
 #define LOOP_IDLE_NORMAL_MS 5    // menu & layar statis
 #define LOOP_IDLE_SCREEN_OFF_MS 60   // tombol & notif tetap seketika: loop dibangunkan ISR / BLE
+#define LOOP_IDLE_LIGHT_SLEEP_MS 1000  // light sleep: bangun lebih jarang (ISR tombol / BLE tetap seketika; TWDT 8 dtk)
 #define LOOP_SLOW_WARN_MS 25     // putaran lebih lama dari ini saat game = peringatan di [HEALTH]
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -298,6 +300,8 @@ static void loopBody() {
                          : (state == ST_ANIM && anim_isPlaying()) ? PR_KEEP_ANIM
                          : PR_NONE;
   power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA);
+  power_lightSleep(settings_lightSleep() && !power_screenOn() && keepAwake == PR_NONE && !popupActive &&
+                   !callShown && !gamePlaying && state != ST_OTA);
 
   // Layar baru menyala lagi: isi buffer saat mati tidak dikirim, jadi gambar ulang semuanya
   if (power_takeScreenWoke()) {
@@ -330,7 +334,10 @@ static void loopBody() {
 
 static uint32_t loopIdleMs() {
   // Tombol baru berubah: polling cepat 0,5 dtk agar debounce 25 ms (dua pembacaan) tidak melewatkan tekan singkat
-  if (!power_screenOn()) return power_buttonRecentlyChanged(500) ? LOOP_IDLE_NORMAL_MS : LOOP_IDLE_SCREEN_OFF_MS;
+  if (!power_screenOn())
+    return power_buttonRecentlyChanged(500) ? LOOP_IDLE_NORMAL_MS
+           : power_lightSleepActive()       ? LOOP_IDLE_LIGHT_SLEEP_MS
+                                            : LOOP_IDLE_SCREEN_OFF_MS;
   bool active = state == ST_GAME || state == ST_ANIM || state == ST_BOOT || state == ST_OTA ||
                 popupActive || callShown;
   return active ? LOOP_IDLE_ACTIVE_MS : LOOP_IDLE_NORMAL_MS;
@@ -365,6 +372,11 @@ void loop() {
     if (offLoops)
       Serial.printf("[POWER] mode tidur=%s, layar mati: kerja loop rata-rata %.2f ms + idle %d ms\n",
                     settings_sleepName(), offLoopUs / 1000.0f / offLoops, LOOP_IDLE_SCREEN_OFF_MS);
+#if LIGHT_SLEEP_SUPPORTED
+    Serial.printf("[PM] light sleep %s (setting %s), sebab bangun terakhir=%d\n",
+                  power_lightSleepActive() ? "aktif" : "ditahan", settings_lightSleep() ? "ON" : "OFF",
+                  (int)esp_sleep_get_wakeup_cause());
+#endif
     offLoops = offLoopUs = 0;
     loops = maxLoopUs = 0;
     slowInGame = false;

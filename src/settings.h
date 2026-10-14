@@ -72,4 +72,8 @@ uint8_t settings_contrastValue();
 bool settings_bootAnim();
 void settings_setBootAnim(bool on);
 
+// Light sleep otomatis saat layar mati (hanya firmware env lightsleep; lihat power.h)
+bool settings_lightSleep();
+void settings_setLightSleep(bool on);
+
 String settings_otaPassword();  // 8 karakter acak, dibuat sekali lalu disimpan
