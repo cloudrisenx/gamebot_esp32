@@ -1,5 +1,6 @@
 #include <nvs_flash.h>
 #include <soc/rtc_cntl_reg.h>
+#include <esp32c3/rom/rtc.h>
 #include "clockstore.h"
 #include "menu.h"
 #include <Adafruit_SSD1306.h>
@@ -581,15 +582,17 @@ static void activateSetting(int item) {
     case SI_FLASH_MODE:
       if (millis() < flashConfirmUntil) {
         // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
-        // Teks tetap tampil di OLED (RAM OLED tidak ikut reset). Keluar: flash/esptool hard reset.
+        // Keluar dari download mode: flash/esptool hard reset.
         drawFullMessage("Mode flash", "flash via USB");
         Serial.println("[SETTING] reboot ke mode download (flash USB)");
         clock_save("flash");
         ble_shutdown();
         Serial.flush();
-        delay(100);
+        delay(1000);
+        display.ssd1306_command(SSD1306_DISPLAYOFF);  // layar gelap = sudah bukan aplikasi
         REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
-        esp_restart();
+        // esp_restart() di C3 hanya reset CPU dan ROM mengabaikan bit di atas; reset sistem membacanya
+        software_reset();
       }
       flashConfirmUntil = millis() + RESET_CONFIRM_MS;
       break;
