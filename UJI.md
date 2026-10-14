@@ -19,16 +19,19 @@ Build **LsleepB** = semua isi main v1.9.22 (menu Teks, Restart/Reset data, Mode 
 > Tabel partisi berubah. **Jangan** kirim firmware ini lewat halaman OTA ke jam berpartisi lama:
 > app 1,75 MB tidak muat di slot lama 1,5 MB dan frames di alamat lain.
 
-File ada di `backup/lightsleep-test/` (repo utama, tidak di-commit). Dari folder itu, ganti `COM5` dengan port jam:
+Hasil build ada di `lightsleepbuild/` (tidak di-commit; dibuat `tools\flash_lightsleep.ps1 -NoFlash`).
+Pertama kali pindah partisi (dari folder itu, ganti `COM5` dengan port jam):
 
 ```powershell
-cd "G:\esp32 c3\ESP32\backup\lightsleep-test"
-pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32c3 --port COM5 --baud 460800 write_flash 0x0 bootloader.bin 0x8000 partitions.bin 0xe000 boot_app0.bin 0x10000 firmware.bin
+cd "G:\esp32 c3\ESP32\lightsleepbuild"
+pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32c3 --port COM5 --baud 460800 write_flash 0x0 firmware.factory.bin
 # Hapus sisa animasi lama di area frames baru (setting/NVS TIDAK terhapus)
 pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32c3 --port COM5 erase_region 0x390000 0x60000
 ```
 
-Alternatif satu file: `write_flash 0x0 firmware.factory.bin` (isi sama: bootloader + partisi + boot_app0 + app).
+`firmware.factory.bin` = bootloader + partisi + boot_app0 + app sekaligus.
+Sudah berpartisi baru? Cukup `powershell -ExecutionPolicy Bypass -File tools\flash_lightsleep.ps1` (build + flash app),
+atau OTA `lightsleepbuild\firmware.bin`.
 
 Masuk mode download tanpa tombol: **Setting → Mode flash → OK, OK lagi** (jam reboot, OLED menampilkan
 "Mode flash"), lalu jalankan perintah di atas. Biasanya esptool juga bisa masuk sendiri lewat USB.
@@ -86,7 +89,8 @@ Lalu upload animasi lama `backup/v1.9.19/frames.bin` lewat halaman OTA (tab Anim
 
 ## Build ulang (catatan untuk developer)
 
-PowerShell (bukan Git Bash), path tanpa spasi, core terpisah:
+Cara cepat: `tools\flash_lightsleep.ps1` (mengerjakan langkah di bawah). Manual: PowerShell (bukan Git Bash),
+path tanpa spasi, core terpisah. JANGAN lewat tombol Build/Upload VS Code untuk env ini:
 
 ```powershell
 cd C:\cute_ls
