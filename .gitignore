@@ -7,3 +7,7 @@ firmware_ota.bin
 frames.bin
 release.md
 backup/
+.dummy/
+sdkconfig.defaults
+sdkconfig.lightsleep
+managed_components/
