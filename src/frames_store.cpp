@@ -1,5 +1,6 @@
 #include "frames_store.h"
 #include <esp_partition.h>
+#include <esp_idf_version.h>
 #include <Adafruit_SSD1306.h>
 #include "power.h"
 #include "screen.h"
@@ -8,8 +9,19 @@ extern Adafruit_SSD1306 display;
 
 static const uint32_t ERASE_BLOCK = 0x10000;
 
+// ESP-IDF 5 memindahkan tipe memory-map partisi ke esp_partition_* (spi_flash_mmap_* sudah tidak di esp_partition.h)
+#if ESP_IDF_VERSION_MAJOR >= 5
+typedef esp_partition_mmap_handle_t frames_mmap_handle_t;
+#define FRAMES_MMAP_DATA ESP_PARTITION_MMAP_DATA
+#define frames_munmap esp_partition_munmap
+#else
+typedef spi_flash_mmap_handle_t frames_mmap_handle_t;
+#define FRAMES_MMAP_DATA SPI_FLASH_MMAP_DATA
+#define frames_munmap spi_flash_munmap
+#endif
+
 static const esp_partition_t *part = nullptr;
-static spi_flash_mmap_handle_t mapHandle;
+static frames_mmap_handle_t mapHandle;
 static bool mapped = false;
 static const uint8_t *mapPtr = nullptr;
 static FramesHeader header;
@@ -44,7 +56,7 @@ static const esp_partition_t *findPartition() {
 }
 
 static void unmap() {
-  if (mapped) spi_flash_munmap(mapHandle);
+  if (mapped) frames_munmap(mapHandle);
   mapped = false;
   mapPtr = nullptr;
   valid = false;
@@ -122,7 +134,7 @@ bool frames_begin() {
 
   uint32_t len = sizeof(FramesHeader) + dataLen(header);
   const void *ptr;
-  if (esp_partition_mmap(p, 0, len, SPI_FLASH_MMAP_DATA, &ptr, &mapHandle) != ESP_OK) return false;
+  if (esp_partition_mmap(p, 0, len, FRAMES_MMAP_DATA, &ptr, &mapHandle) != ESP_OK) return false;
   mapped = true;
   mapPtr = (const uint8_t *)ptr;
 

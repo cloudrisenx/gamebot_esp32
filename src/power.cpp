@@ -28,7 +28,18 @@ void power_begin() {
   if (wokeFromSleep) Serial.printf("[POWER] bangun: %s\n", wokeByTimer ? "timer" : "tombol");
 
   // TWDT sudah diinisialisasi core Arduino untuk idle task; init ulang memperbarui timeout
+#if ESP_IDF_VERSION_MAJOR >= 5
+  // IDF 5: konfigurasi lewat struct; TWDT sudah aktif -> reconfigure (init akan ESP_ERR_INVALID_STATE)
+  esp_task_wdt_config_t wdtCfg = {};
+  wdtCfg.timeout_ms = WDT_TIMEOUT_S * 1000;
+#ifdef CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0
+  wdtCfg.idle_core_mask = 1 << 0;  // tetap awasi idle task seperti sebelumnya
+#endif
+  wdtCfg.trigger_panic = true;
+  esp_task_wdt_reconfigure(&wdtCfg);
+#else
   esp_task_wdt_init(WDT_TIMEOUT_S, true);
+#endif
   esp_task_wdt_add(NULL);  // loop task (setup() & loop() berjalan di task yang sama)
   lastActivity = millis();
 }

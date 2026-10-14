@@ -425,7 +425,8 @@ bool ble_takeSyncDone(bool &withTime) {
 }
 
 bool ble_requestTimeSync() {
-  syncDone = timeSeen = false;
+  syncDone = false;
+  timeSeen = false;
   bool ok;
   if (ble_isIphone()) ok = ios_readTime();
   else {
