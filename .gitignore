@@ -13,3 +13,4 @@ sdkconfig.lightsleep
 managed_components/
 CMakeLists.txt
 dependencies.lock
+lightsleepbuild/
