@@ -90,8 +90,8 @@ static void IRAM_ATTR onPinEdge(void *arg) {
   if (armed[i]) {
     // Level LOW akan memicu ISR terus selama ditahan: kembali ke tepi (fungsi LL = inline, aman di ISR)
     armed[i] = false;
-    gpio_ll_wakeup_disable(&GPIO, PINS[i]);
-    gpio_ll_set_intr_type(&GPIO, PINS[i], GPIO_INTR_ANYEDGE);
+    gpio_ll_wakeup_disable(&GPIO, (gpio_num_t)PINS[i]);
+    gpio_ll_set_intr_type(&GPIO, (gpio_num_t)PINS[i], GPIO_INTR_ANYEDGE);
   }
   if (gpio_get_level((gpio_num_t)PINS[i]) == 0) {
     // Tepi turun (ditekan). Duel: catat yang PERTAMA saja; pantulan kontak tidak menimpanya
