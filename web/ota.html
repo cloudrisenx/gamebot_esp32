@@ -93,9 +93,11 @@ button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 
 <script>
 // ===== Fungsi murni: dipakai halaman ini & diuji di Node (tools/test_web_converter.mjs) =====
-var W = 128, H = 64, FB = 1024, MAXF = 895;
+var W = 128, H = 64, FB = 1024, MAXF = 383;
 // FRM2 (berkompresi): kapasitas ditentukan ukuran hasil kompresi; jumlah frame dibatasi MAXF2
-var PART_BYTES = 0xE0000, MAXF2 = 3600, KEY_EVERY = 30;
+var PART_BYTES = 0x60000, MAXF2 = 3600, KEY_EVERY = 30;
+// Ukuran partisi frames sebenarnya (dari /info) menggantikan nilai bawaan di atas
+function setPartBytes(n) { if (n > 16) { PART_BYTES = n; MAXF = Math.floor((n - 16) / FB); } }
 // Ukuran frame per orientasi; ukuran byte per frame sama (1024)
 var DIMS = { land: [128, 64], port: [64, 128] };
 
@@ -727,6 +729,7 @@ if (typeof document !== 'undefined') (function () {
   function loadInfo(cb) {
     fetch('/info', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
       INFO = j;
+      if (j.frames) setPartBytes(j.frames);
       $('fwNow').textContent = j.fw + ' (' + j.app + ')';
       if (cb) cb(j);
     }).catch(function () { if (!cb) $('fwNow').textContent = 'tidak diketahui'; });
@@ -782,6 +785,7 @@ if (typeof document !== 'undefined') (function () {
     });
   }
 
+  loadInfo();
   $('tabA').addEventListener('click', function () { showTab(false); });
   $('tabF').addEventListener('click', function () { showTab(true); });
   $('toFw').addEventListener('click', function () { msg(''); $('toFw').hidden = true; showTab(true); });
@@ -828,3 +832,4 @@ if (typeof document !== 'undefined') (function () {
 })();
 </script>
 </body></html>
+ 

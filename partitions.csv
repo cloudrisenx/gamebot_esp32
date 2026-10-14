@@ -1,7 +1,9 @@
 # Name,   Type, SubType,  Offset,   Size
+# Branch lightsleep (Arduino 3.x lebih besar): app 1,75 MB x2, frames 384 KB (animasi FRM2 terkompresi).
+# nvs / otadata / coredump TIDAK pindah (setting tetap terbaca). Ganti tabel ini WAJIB lewat USB.
 nvs,      data, nvs,      0x9000,   0x5000
 otadata,  data, ota,      0xE000,   0x2000
-app0,     app,  ota_0,    0x10000,  0x180000
-app1,     app,  ota_1,    0x190000, 0x180000
-frames,   data, 0x40,     0x310000, 0xE0000
+app0,     app,  ota_0,    0x10000,  0x1C0000
+app1,     app,  ota_1,    0x1D0000, 0x1C0000
+frames,   data, 0x40,     0x390000, 0x60000
 coredump, data, coredump, 0x3F0000, 0x10000

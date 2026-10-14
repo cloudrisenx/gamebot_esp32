@@ -11,3 +11,5 @@ backup/
 sdkconfig.defaults
 sdkconfig.lightsleep
 managed_components/
+CMakeLists.txt
+dependencies.lock

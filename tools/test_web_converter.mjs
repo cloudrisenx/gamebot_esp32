@@ -295,9 +295,9 @@ print(count)
   const jsRaw = new Uint8Array(jsUn.count * 1024); jsUn.bitmaps.forEach((b, i) => jsRaw.set(b, i * 1024));
   check('decoder C++ (salinan Python) == unpackFrames2', +pyOut === jsUn.count && eq(pyRaw, jsRaw), `${pyOut.trim()} frame`);
 
-  console.log('\nRasio kompresi FRM2 (perkiraan maks di 30 fps dengan rasio yang sama):');
+  console.log('\nRasio kompresi FRM2 (perkiraan maks di 30 fps, partisi frames 384 KB):');
   for (const [name, ratio, bytes, n] of ratios) {
-    const perFrame = (bytes - 16) / n, maxFrames = Math.min(3600, Math.floor((0xE0000 - 16) / perFrame));
+    const perFrame = (bytes - 16) / n, maxFrames = Math.min(3600, Math.floor((0x60000 - 16) / perFrame));
     console.log(`  ${name.padEnd(13)} ${ratio.toFixed(2)}x  (${perFrame.toFixed(0)} B/frame) -> ±${(maxFrames / 30).toFixed(0)} dtk @30fps`);
   }
 } finally {

@@ -1,3 +1,4 @@
+#include <esp_partition.h>
 #include "clockstore.h"
 #include "ota.h"
 #include <WiFi.h>
@@ -248,7 +249,8 @@ static void handleInfo() {
   } else {
     json += "null";
   }
-  json += "}";
+  const esp_partition_t *fp = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, (esp_partition_subtype_t)0x40, "frames");
+  json += String(",\"frames\":") + (fp ? fp->size : 0) + "}";
   server.send(200, "application/json", json);
 }
 
