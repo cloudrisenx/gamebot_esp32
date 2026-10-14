@@ -14,7 +14,11 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $wt = 'G:\esp32_lightsleep\wt'
 $out = Join-Path $repo 'lightsleepbuild'
-$pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe"
+# pio.exe milik PlatformIO global (G:\pio_global bila sudah dipindah, selain itu ~\.platformio)
+$globalCore = [Environment]::GetEnvironmentVariable('PLATFORMIO_CORE_DIR', 'User')
+if (-not $globalCore) { $globalCore = "$env:USERPROFILE\.platformio" }
+$pio = Join-Path $globalCore 'penv\Scripts\pio.exe'
+if (-not (Test-Path $pio)) { $pio = "$env:USERPROFILE\.platformio\penv\Scripts\pio.exe" }
 
 if (Get-Process pio -ErrorAction SilentlyContinue) { throw 'Masih ada proses pio berjalan: tunggu selesai dulu (jangan dua build bersamaan).' }
 
