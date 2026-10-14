@@ -81,7 +81,7 @@ Pop-up WhatsApp ditahan selama di menu Game (tetap masuk riwayat); panggilan tet
 
 **Setting** — notif pop-up, Bluetooth on/off, restart Bluetooth, mode HP (Android/iPhone), jam, layar mati,
 auto sleep, malam, kecerahan, **OLED I2C** (800/400/200 kHz) & **Uji OLED** (pola uji + statistik error I2C),
-animasi boot, reset hi-score, tidur sekarang, **Restart**, **Reset data** (hapus semua setting, hi-score,
+animasi boot, reset hi-score, tidur sekarang, **Restart**, **Mode flash** (reboot ke mode download untuk flash USB tanpa tombol BOOT), **Reset data** (hapus semua setting, hi-score,
 jam tersimpan, teks, dan pairing; animasi tetap), update OTA, panduan iPhone, hapus pairing, info.
 
 **Update OTA** — Setting > Update OTA menyalakan WiFi AP `cute_device_OTA`; sambungkan HP lalu buka

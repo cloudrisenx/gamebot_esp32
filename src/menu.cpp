@@ -1,4 +1,5 @@
 #include <nvs_flash.h>
+#include <soc/rtc_cntl_reg.h>
 #include "clockstore.h"
 #include "menu.h"
 #include <Adafruit_SSD1306.h>
@@ -84,13 +85,13 @@ static const int MENU_COUNT = 6;
 static Carousel menuCar = {};
 
 enum SettingItem {
-  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_SLEEP, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_RESET_DATA, SI_OTA,
+  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_SLEEP, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
   SI_GUIDE, SI_UNPAIR, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Mode HP", "Jam", "Layar mati", "Auto sleep", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
-  "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Reset data", "Update OTA",
+  "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Mode flash", "Reset data", "Update OTA",
   "Panduan iPhone", "Hapus pairing", "Info"
 };
 static const char *PHONE_OPTS[PHONE_MODE_COUNT] = {"Android", "iPhone"};
@@ -142,7 +143,7 @@ static uint32_t unpairConfirmUntil = 0;
 static uint32_t unpairDoneUntil = 0;
 static bool unpairOk = false;
 static uint32_t btRestartConfirmUntil = 0;
-static uint32_t restartConfirmUntil = 0, resetDataConfirmUntil = 0;
+static uint32_t restartConfirmUntil = 0, resetDataConfirmUntil = 0, flashConfirmUntil = 0;
 static uint32_t btRestartAt = 0;          // 0 = belum pernah; hasil tampil 4 dtk sesudahnya
 static const uint32_t BT_RESTART_SHOW_MS = 4000, BT_RESTART_WAIT_MS = 1500;
 
@@ -490,6 +491,7 @@ static String settingValue(int item) {
     case SI_OLED_TEST: return ">";
     case SI_RESTART:    return millis() < restartConfirmUntil ? "OK lagi?" : ">";
     case SI_RESET_DATA: return millis() < resetDataConfirmUntil ? "OK lagi?" : ">";
+    case SI_FLASH_MODE: return millis() < flashConfirmUntil ? "OK lagi?" : ">";
     case SI_BOOTANIM: return settings_bootAnim() ? "ON" : "OFF";
     case SI_RESET_HI:
       if (millis() < resetDoneUntil) return "Reset!";
@@ -576,6 +578,21 @@ static void activateSetting(int item) {
       }
       restartConfirmUntil = millis() + RESET_CONFIRM_MS;
       break;
+    case SI_FLASH_MODE:
+      if (millis() < flashConfirmUntil) {
+        // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
+        // Teks tetap tampil di OLED (RAM OLED tidak ikut reset). Keluar: flash/esptool hard reset.
+        drawFullMessage("Mode flash", "flash via USB");
+        Serial.println("[SETTING] reboot ke mode download (flash USB)");
+        clock_save("flash");
+        ble_shutdown();
+        Serial.flush();
+        delay(100);
+        REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+        esp_restart();
+      }
+      flashConfirmUntil = millis() + RESET_CONFIRM_MS;
+      break;
     case SI_RESET_DATA:
       if (millis() < resetDataConfirmUntil) {
         // Hapus SELURUH partisi NVS: setting, hi-score, mode game, jam & cuaca tersimpan, teks berjalan,
@@ -653,6 +670,7 @@ static uint32_t settingsSignature() {
   uint32_t h = sig_mix(header_signature(), millis() < resetConfirmUntil);
   h = sig_mix(h, millis() < restartConfirmUntil);
   h = sig_mix(h, millis() < resetDataConfirmUntil);
+  h = sig_mix(h, millis() < flashConfirmUntil);
   h = sig_mix(h, millis() < btRestartConfirmUntil);
   h = sig_str(h, settingValue(SI_BT_RESTART).c_str());
   h = sig_mix(h, clock_source());
@@ -1028,12 +1046,13 @@ AppState settings_screen_update(bool redraw) {
       return ST_SETTINGS;
     }
   } else if (btn_pressed(BTN_BACK)) {
-    resetConfirmUntil = unpairConfirmUntil = btRestartConfirmUntil = restartConfirmUntil = resetDataConfirmUntil = 0;
+    resetConfirmUntil = unpairConfirmUntil = btRestartConfirmUntil = restartConfirmUntil = resetDataConfirmUntil =
+        flashConfirmUntil = 0;
     return ST_MENU;
   }
 
   if (carousel_input(settingCar, SI_COUNT)) {
-    resetConfirmUntil = btRestartConfirmUntil = restartConfirmUntil = resetDataConfirmUntil = 0;
+    resetConfirmUntil = btRestartConfirmUntil = restartConfirmUntil = resetDataConfirmUntil = flashConfirmUntil = 0;
     redraw = true;
   }
   if (carousel_frameDue(settingCar)) redraw = true;
@@ -1053,7 +1072,7 @@ AppState settings_screen_update(bool redraw) {
   bool tempText = millis() < resetConfirmUntil + 200 || millis() < resetDoneUntil + 200 ||
                   millis() < unpairConfirmUntil + 200 || millis() < unpairDoneUntil + 200 ||
                   millis() < btRestartConfirmUntil + 200 || millis() < restartConfirmUntil + 200 ||
-                  millis() < resetDataConfirmUntil + 200 ||
+                  millis() < resetDataConfirmUntil + 200 || millis() < flashConfirmUntil + 200 ||
                   (btRestartAt && millis() - btRestartAt < BT_RESTART_SHOW_MS + 200);
   if (!redraw_needed(watch, redraw, settingsSignature, tempText ? 100 : 1000)) return ST_SETTINGS;
 
