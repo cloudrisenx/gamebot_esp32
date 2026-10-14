@@ -1,4 +1,4 @@
-# Uji light sleep (branch `lightsleep`)
+# Uji LsleepB (light sleep + BLE, branch `LsleepB`)
 
 Firmware percobaan: Arduino 3.3.12 / ESP-IDF 5.5 (pioarduino), light sleep otomatis saat layar mati.
 Build **LsleepB** = semua isi main v1.9.22 (menu Teks, Restart/Reset data, Mode flash, perbaikan pairing Kamera) + light sleep + BLE.
