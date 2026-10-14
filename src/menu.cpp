@@ -1,3 +1,4 @@
+#include <soc/rtc_cntl_reg.h>
 #include "clockstore.h"
 #include "menu.h"
 #include <Adafruit_SSD1306.h>
@@ -73,13 +74,13 @@ static const int MENU_COUNT = 5;
 static Carousel menuCar = {};
 
 enum SettingItem {
-  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_OTA,
+  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_FLASH_MODE, SI_OTA,
   SI_GUIDE, SI_UNPAIR, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Mode HP", "Jam", "Layar mati", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
-  "Animasi boot", "Reset hi-score", "Tidur sekarang", "Update OTA",
+  "Animasi boot", "Reset hi-score", "Tidur sekarang", "Mode flash", "Update OTA",
   "Panduan iPhone", "Hapus pairing", "Info"
 };
 static const char *PHONE_OPTS[PHONE_MODE_COUNT] = {"Android", "iPhone"};
@@ -131,6 +132,7 @@ static uint32_t unpairConfirmUntil = 0;
 static uint32_t unpairDoneUntil = 0;
 static bool unpairOk = false;
 static uint32_t btRestartConfirmUntil = 0;
+static uint32_t flashConfirmUntil = 0;
 static uint32_t btRestartAt = 0;          // 0 = belum pernah; hasil tampil 4 dtk sesudahnya
 static const uint32_t BT_RESTART_SHOW_MS = 4000, BT_RESTART_WAIT_MS = 1500;
 
@@ -478,6 +480,7 @@ static String settingValue(int item) {
       if (millis() < resetDoneUntil) return "Reset!";
       if (millis() < resetConfirmUntil) return "OK lagi?";
       return String(GAME_COUNT) + " game";
+    case SI_FLASH_MODE: return millis() < flashConfirmUntil ? "OK lagi?" : ">";
     case SI_OTA:
     case SI_GUIDE:
     case SI_INFO:     return ">";
@@ -565,6 +568,27 @@ static void activateSetting(int item) {
       }
       break;
     case SI_SLEEP_NOW: power_requestSleep(1000); break;
+    case SI_FLASH_MODE:
+      if (millis() < flashConfirmUntil) {
+        // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
+        // Teks tetap tampil di OLED (RAM OLED tidak ikut reset). Keluar: flash/esptool hard reset.
+        display.clearDisplay();
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(34, 20);
+        display.print("Mode flash");
+        display.setCursor(25, 36);
+        display.print("flash via USB");
+        oled_flush();
+        Serial.println("[SETTING] reboot ke mode download (flash USB)");
+        clock_save("flash");
+        ble_shutdown();
+        Serial.flush();
+        delay(100);
+        REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+        esp_restart();
+      }
+      flashConfirmUntil = millis() + RESET_CONFIRM_MS;
+      break;
     case SI_OTA:       otaRequested = true; break;
     case SI_INFO:      infoOpen = true; break;
   }
@@ -609,6 +633,7 @@ static uint32_t infoSignature() {
 static uint32_t settingsSignature() {
   uint32_t h = sig_mix(header_signature(), millis() < resetConfirmUntil);
   h = sig_mix(h, millis() < btRestartConfirmUntil);
+  h = sig_mix(h, millis() < flashConfirmUntil);
   h = sig_str(h, settingValue(SI_BT_RESTART).c_str());
   h = sig_mix(h, clock_source());
   h = sig_mix(h, millis() < unpairConfirmUntil);
@@ -971,11 +996,11 @@ AppState settings_screen_update(bool redraw) {
       return ST_SETTINGS;
     }
   } else if (btn_pressed(BTN_BACK)) {
-    resetConfirmUntil = unpairConfirmUntil = btRestartConfirmUntil = 0;
+    resetConfirmUntil = unpairConfirmUntil = btRestartConfirmUntil = flashConfirmUntil = 0;
     return ST_MENU;
   }
 
-  if (carousel_input(settingCar, SI_COUNT)) { resetConfirmUntil = btRestartConfirmUntil = 0; redraw = true; }
+  if (carousel_input(settingCar, SI_COUNT)) { resetConfirmUntil = btRestartConfirmUntil = flashConfirmUntil = 0; redraw = true; }
   if (carousel_frameDue(settingCar)) redraw = true;
   if (btn_pressed(BTN_OK)) {
     activateSetting(settingCar.sel);
@@ -992,7 +1017,7 @@ AppState settings_screen_update(bool redraw) {
   // Teks konfirmasi aktif: cek lebih sering agar hilang tepat waktu
   bool tempText = millis() < resetConfirmUntil + 200 || millis() < resetDoneUntil + 200 ||
                   millis() < unpairConfirmUntil + 200 || millis() < unpairDoneUntil + 200 ||
-                  millis() < btRestartConfirmUntil + 200 ||
+                  millis() < btRestartConfirmUntil + 200 || millis() < flashConfirmUntil + 200 ||
                   (btRestartAt && millis() - btRestartAt < BT_RESTART_SHOW_MS + 200);
   if (!redraw_needed(watch, redraw, settingsSignature, tempText ? 100 : 1000)) return ST_SETTINGS;
 

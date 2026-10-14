@@ -8,7 +8,7 @@ Basis kode: v1.9.19 (bc684a5). **Belum** berisi fitur v1.9.20 (menu Teks, Restar
 | Bagian | Isi |
 |---|---|
 | Partisi | app0/app1 1,75 MB (0x1C0000), frames **384 KB** (0x390000/0x60000). nvs/otadata/coredump tetap → setting & pairing tetap terbaca |
-| Ukuran | firmware 1.365.718 B = 74,4% slot 1,75 MB |
+| Ukuran | firmware 1.366.078 B = 74,4% slot 1,75 MB |
 | sdkconfig | PM + tickless idle, BT modem sleep (clock XTAL utama, tanpa kristal 32 kHz), WiFi tanpa WPA3/enterprise |
 | Setting | "Auto sleep" dihapus: layar mati = **selalu** light sleep + BLE; deep sleep otomatis hanya jadwal **Malam** ("Tidur sekarang" tetap) |
 | Saat layar mati | kunci PM dilepas: CPU boleh 40 MHz & chip light sleep saat idle; loop bangun tiap 1 dtk (bukan 60 ms); tombol membangunkan lewat level LOW |
@@ -30,7 +30,10 @@ pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32c3 --port COM5 erase_re
 
 Alternatif satu file: `write_flash 0x0 firmware.factory.bin` (isi sama: bootloader + partisi + boot_app0 + app).
 
-Jam tidak masuk mode download? Tahan tombol BOOT (GPIO9) saat colok USB.
+Masuk mode download tanpa tombol: **Setting → Mode flash → OK, OK lagi** (jam reboot, OLED menampilkan
+"Mode flash"), lalu jalankan perintah di atas. Biasanya esptool juga bisa masuk sendiri lewat USB.
+Kalau setelah flash jam tetap di mode download: `esptool.py --chip esp32c3 --port COM5 write_mem 0x600080F4 0`
+(hapus bit FORCE_DOWNLOAD_BOOT) — esptool lalu me-reset jam.
 
 ## 2. Upload animasi lagi (≤ 384 KB)
 
