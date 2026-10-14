@@ -378,8 +378,8 @@ void loop() {
     if (offLoops)
       Serial.printf("[POWER] layar mati: kerja loop rata-rata %.2f ms\n", offLoopUs / 1000.0f / offLoops);
 #if LIGHT_SLEEP_SUPPORTED
-    Serial.printf("[PM] light sleep %s, sebab bangun terakhir=%d\n", power_lightSleepActive() ? "aktif" : "ditahan",
-                  (int)esp_sleep_get_wakeup_cause());
+    Serial.printf("[PM] mode %s, light sleep %s, sebab bangun terakhir=%d\n", settings_pmModeName(),
+                  power_lightSleepActive() ? "aktif" : "ditahan", (int)esp_sleep_get_wakeup_cause());
 #endif
     offLoops = offLoopUs = 0;
     loops = maxLoopUs = 0;

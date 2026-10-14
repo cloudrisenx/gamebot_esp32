@@ -32,6 +32,7 @@ static uint8_t hitungLv5Idx = 2;  // 1,2s
 static const char *const HITUNG_DIST_NAMES[HITUNG_DIST_OPT_COUNT] = {"Tanpa", "Sedikit", "Sedang", "Banyak"};
 static uint8_t hitungDistIdx = 2;  // Sedang
 static bool bootAnim = true;
+static uint8_t pmMode = PM_MODE_LIGHT_SLEEP;
 static String devName, bleName, otaSsid;  // kosong = nama bawaan (DEVICE_NAME)
 
 void settings_begin() {
@@ -75,6 +76,7 @@ void settings_begin() {
   hitungDistIdx = prefs.getUChar("hitDist", 2) % HITUNG_DIST_OPT_COUNT;
   bootAnim = prefs.getBool("anim", true);
   devName = prefs.getString("devName", "");
+  pmMode = prefs.getUChar("pmMode", PM_MODE_LIGHT_SLEEP) % PM_MODE_COUNT;
   bleName = prefs.getString("bleName", "");
   otaSsid = prefs.getString("ssid", "");
 }
@@ -225,4 +227,12 @@ bool settings_setNames(const String &dev, const String &ble, const String &ssid,
   prefs.putString("ssid", ssid);
   if (pw.length()) prefs.putString("otapw", pw);
   return true;
+}
+
+static const char *const PM_MODE_NAMES[PM_MODE_COUNT] = {"Normal", "DFS", "Light slp"};
+uint8_t settings_pmMode() { return pmMode; }
+const char *settings_pmModeName() { return PM_MODE_NAMES[pmMode]; }
+void settings_setPmMode(uint8_t m) {
+  pmMode = m % PM_MODE_COUNT;
+  prefs.putUChar("pmMode", pmMode);
 }

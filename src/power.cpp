@@ -16,7 +16,8 @@ static bool wokeFromSleep = false;
 #if LIGHT_SLEEP_SUPPORTED
 static esp_pm_lock_handle_t lsLock = nullptr, cpuLock = nullptr;
 #endif
-static bool lsActive = false;
+static bool lsActive = false;  // kunci light sleep dilepas
+static bool cpuFree = false;   // kunci CPU maks dilepas (DFS)
 static bool wokeByTimer = false;
 static uint32_t screenOffAt = 0;  // millis() saat layar mati (jadwal malam: tidur 1 mnt sesudahnya)
 static esp_reset_reason_t resetReason;
@@ -268,18 +269,27 @@ bool power_buttonRecentlyChanged(uint32_t ms) { return xTaskGetTickCount() - las
 
 void power_lightSleep(bool allowed) {
 #if LIGHT_SLEEP_SUPPORTED
-  if (allowed) buttons_armWake(true);  // pin yang baru dilepas dipersenjatai lagi
-  if (allowed == lsActive) return;
-  lsActive = allowed;
-  if (allowed) {
-    esp_pm_lock_release(cpuLock);
-    esp_pm_lock_release(lsLock);
-  } else {
-    esp_pm_lock_acquire(lsLock);
-    esp_pm_lock_acquire(cpuLock);
-    buttons_armWake(false);
+  // Setting "Mode hemat": Normal (seperti firmware lama), DFS (CPU boleh 40 MHz), Light sleep (+ chip tidur)
+  uint8_t mode = settings_pmMode();
+  bool wantCpu = allowed && mode >= PM_MODE_DFS, wantLs = allowed && mode >= PM_MODE_LIGHT_SLEEP;
+  if (wantLs) buttons_armWake(true);  // pin yang baru dilepas dipersenjatai lagi
+  if (wantCpu == cpuFree && wantLs == lsActive) return;
+  if (wantLs != lsActive) {
+    if (wantLs) {
+      esp_pm_lock_release(lsLock);
+    } else {
+      esp_pm_lock_acquire(lsLock);
+      buttons_armWake(false);
+    }
+    lsActive = wantLs;
   }
-  Serial.printf("[PM] light sleep %s\n", allowed ? "boleh" : "ditahan");
+  if (wantCpu != cpuFree) {
+    if (wantCpu) esp_pm_lock_release(cpuLock);
+    else esp_pm_lock_acquire(cpuLock);
+    cpuFree = wantCpu;
+  }
+  Serial.printf("[PM] mode %s: DFS %s, light sleep %s\n", settings_pmModeName(), cpuFree ? "ON" : "off",
+                lsActive ? "ON" : "off");
 #else
   (void)allowed;
 #endif

@@ -70,6 +70,12 @@ String settings_otaPassword();  // 8 karakter acak dibuat sekali, atau yang diat
 
 // Nama dari tab "Perangkat" halaman OTA (NVS); kosong = bawaan DEVICE_NAME. Berlaku setelah restart.
 #define NAME_MAX_LEN 20
+
+// Mode hemat saat layar mati (env lightsleep): uji/cadangan bila BLE bermasalah saat light sleep
+enum PmMode : uint8_t { PM_MODE_NORMAL, PM_MODE_DFS, PM_MODE_LIGHT_SLEEP, PM_MODE_COUNT };
+uint8_t settings_pmMode();
+void settings_setPmMode(uint8_t m);
+const char *settings_pmModeName();
 String settings_deviceName();   // teks layar & manufacturer Remote
 String settings_bleName();      // Bluetooth Android/Chronos & iPhone; Remote = nama + " Remote"
 String settings_otaSsid();      // WiFi OTA, bawaan DEVICE_NAME "_OTA"
