@@ -12,14 +12,20 @@
   "10": "game_dino.cpp",
   "11": "SettingItem",
   "12": "games.cpp",
-  "13": "clockstore.cpp",
+  "13": "home.cpp",
   "14": "GameDef",
   "15": "game_flappy.cpp",
   "16": "remote_hid.cpp",
   "17": "phone.cpp",
   "18": "settings_hiscore",
-  "19": "TttMode",
+  "19": "ble_isIphone",
   "20": "ota.cpp",
   "21": "WeatherCache",
-  "22": "SyncState"
+  "22": "SyncState",
+  "23": "ble_update",
+  "24": "IosServerCallbacks",
+  "25": "RawNotif",
+  "26": "AmsUpdate",
+  "27": "arduino-lib-builder-cpp.cpp",
+  "28": "arduino-lib-builder-gcc.c"
 }

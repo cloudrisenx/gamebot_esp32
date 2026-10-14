@@ -1,6 +1,6 @@
 # Riwayat Pengembangan & Ceklist Uji
 
-Versi firmware saat ini: **v1.9.19** (`src/version.h`). Update ke perangkat hanya lewat **OTA**.
+Versi firmware saat ini: **v1.9.20** (`src/version.h`). Update ke perangkat hanya lewat **OTA**.
 
 ---
 
@@ -117,6 +117,11 @@ Setelah ganti nama (catat di tes):
 - [ ] (Opsional) ukur arus dengan USB power meter.
 
 **Lain-lain:**
+- [ ] Beranda v1.9.20: tombol R (kanan) membuka menu Animasi (dulu Musik); legenda "<Notif  Anim>  Menu ⏻". Musik tetap lewat HP > Musik.
+- [ ] Setting v1.9.20: "Restart" (OK, OK lagi) -> "Restart..." lalu jam menyala lagi, jam tetap benar. Serial `[SETTING] restart`.
+- [ ] Setting v1.9.20: "Reset data" (OK, OK lagi) -> "Mereset..." -> restart: setting kembali default, hi-score 0, mode game default, jam belum disetel/perlu sinkron, teks kembali "Halo dari cute_device", pairing hilang (iPhone: Lupakan Perangkat lalu pasangkan ulang; Android: sambungkan ulang dari Chronos). ANIMASI TETAP ADA. Serial `[SETTING] reset data ... nvs_flash_erase: ESP_OK`.
+- [ ] Teks v1.9.20: Menu > Teks: teks besar berjalan; kiri/kanan kecepatan (3 titik di kiri bawah), OK jeda (ikon ||), BACK keluar; layar tidak mati selama di menu Teks.
+- [ ] Teks v1.9.20: halaman OTA tab Teks: teks sekarang tampil, ubah lalu Simpan -> "Tersimpan"; emoji/huruf non-ASCII dibuang, maks 200; teks kosong ditolak. Serial `[TEKS] disimpan N karakter`.
 - [ ] OLED v1.9.19: Setting > OLED I2C (800/400/200 kHz) langsung berlaku tanpa restart; OLED tidak menjawab -> turun otomatis, kartu tampil "800>400k". Serial `[OLED] I2C 400 kHz`.
 - [ ] OLED v1.9.19: Setting > Uji OLED: kiri/kanan pola (bingkai+silang / papan catur / kotak animasi), OK = overlay (kHz, waktu kirim terakhir/maks, frame, error, re-init), tahan OK 1 dtk = re-init OLED, BACK keluar.
 - [ ] OLED v1.9.19: bandingkan 800 / 400 / 200 kHz di pola animasi 1-2 menit: catat mana yang tidak pernah bergeser & error tetap 0 -> pakai itu. Lalu cek game & Beranda tetap mulus. Info: baris "H.../...k I2C800 e0".

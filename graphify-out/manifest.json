@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "src/clockstore.cpp": {
-    "mtime": 1791605373.6555305,
-    "seen": 1791607128.0068552,
-    "ast_hash": "98030f339dd7148612fb9dcab9f066cb",
+    "mtime": 1791987460.674185,
+    "seen": 1791987922.9475038,
+    "ast_hash": "5bd5abf29c900aadd5d5775659ff27ff",
     "semantic_hash": ""
   },
   "src/clockstore.h": {
@@ -156,9 +156,9 @@
     "semantic_hash": ""
   },
   "src/home.cpp": {
-    "mtime": 1791607090.0557837,
-    "seen": 1791607128.0068552,
-    "ast_hash": "cc33615887ea987663e80fa36b4b5cbe",
+    "mtime": 1791987599.0692382,
+    "seen": 1791987922.9475038,
+    "ast_hash": "dde7b8e74f2d0034a7462ce694f64c97",
     "semantic_hash": ""
   },
   "src/home.h": {
@@ -180,27 +180,27 @@
     "semantic_hash": ""
   },
   "src/main.cpp": {
-    "mtime": 1791612649.5494685,
-    "seen": 1791612735.32295,
-    "ast_hash": "fe68c157c3b2e68af95a3006b543705b",
+    "mtime": 1791987599.0692382,
+    "seen": 1791987922.9475038,
+    "ast_hash": "da0b62d701d75cc84733663bc227a9eb",
     "semantic_hash": ""
   },
   "src/menu.cpp": {
-    "mtime": 1791612649.5515463,
-    "seen": 1791612735.32295,
-    "ast_hash": "ae89646a353d91d206de779f46ab2f5a",
+    "mtime": 1791987599.1184354,
+    "seen": 1791987922.9475038,
+    "ast_hash": "96a26bcba9afccef5aff47d00429f65b",
     "semantic_hash": ""
   },
   "src/menu.h": {
-    "mtime": 1791518245.6206844,
-    "seen": 1791607128.0068552,
-    "ast_hash": "3b4a6d9211a39d16dc3632e611c94739",
+    "mtime": 1791987599.067654,
+    "seen": 1791987922.9475038,
+    "ast_hash": "a194133c5b6198b6f4a4ecc951f6177e",
     "semantic_hash": ""
   },
   "src/ota.cpp": {
-    "mtime": 1791605382.529255,
-    "seen": 1791607128.0068552,
-    "ast_hash": "ba20988ca48c72ee220533819712fbad",
+    "mtime": 1791987599.1307933,
+    "seen": 1791987922.9475038,
+    "ast_hash": "827c20b8f8b043d70ed0dd9098fc88dd",
     "semantic_hash": ""
   },
   "src/ota.h": {
@@ -234,15 +234,15 @@
     "semantic_hash": ""
   },
   "src/remote_hid.cpp": {
-    "mtime": 1791529462.6278408,
-    "seen": 1791607128.0068552,
-    "ast_hash": "f78d61d67f6b545657247106a7157955",
+    "mtime": 1791987460.675213,
+    "seen": 1791987922.9475038,
+    "ast_hash": "c623fe18c5346c2dcd4a96dc05f5412a",
     "semantic_hash": ""
   },
   "src/remote_hid.h": {
-    "mtime": 1791529462.6294992,
-    "seen": 1791607128.0068552,
-    "ast_hash": "3b9f2e8d6f546d16528045bbd5f4d37e",
+    "mtime": 1791987460.675213,
+    "seen": 1791987922.9475038,
+    "ast_hash": "d9c1f0ec6768f8b81957c1195f2f6019",
     "semantic_hash": ""
   },
   "src/screen.cpp": {
@@ -270,9 +270,51 @@
     "semantic_hash": ""
   },
   "src/version.h": {
-    "mtime": 1791612705.37494,
-    "seen": 1791612735.32295,
-    "ast_hash": "a9b7466837871c8befbe351d5a638a32",
+    "mtime": 1791987599.1307933,
+    "seen": 1791987922.9475038,
+    "ast_hash": "2353dba8aeefbc905bc22db9ab5f5cbb",
+    "semantic_hash": ""
+  },
+  ".dummy/arduino-lib-builder-cpp.cpp": {
+    "mtime": 1790060020.0,
+    "seen": 1791987922.9475038,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  ".dummy/arduino-lib-builder-gcc.c": {
+    "mtime": 1790060020.0,
+    "seen": 1791987922.9475038,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  ".dummy/sketch.cpp": {
+    "mtime": 1790060020.0,
+    "seen": 1791987922.9475038,
+    "ast_hash": "d0a853d2f8917ccedbcd096195c97a77",
+    "semantic_hash": ""
+  },
+  "src/text_screen.cpp": {
+    "mtime": 1791987521.8487718,
+    "seen": 1791987922.9475038,
+    "ast_hash": "18b7fc337b36a3b0f64a4ab4b4ac9952",
+    "semantic_hash": ""
+  },
+  "src/text_screen.h": {
+    "mtime": 1791987520.7877617,
+    "seen": 1791987922.9475038,
+    "ast_hash": "69a8d157fde935e6bff8110bc4981383",
+    "semantic_hash": ""
+  },
+  ".dummy/CMakeLists.txt": {
+    "mtime": 1790060020.0,
+    "seen": 1791987922.9475038,
+    "ast_hash": "5ead25b68d799cbba8c9031aedd6a4c5",
+    "semantic_hash": ""
+  },
+  ".dummy/idf_component.yml": {
+    "mtime": 1790060020.0,
+    "seen": 1791987922.9475038,
+    "ast_hash": "c0c7179890640d9a87d43480631fae78",
     "semantic_hash": ""
   }
 }
