@@ -82,7 +82,8 @@ button.sec{background:transparent;color:var(--acc);border:1px solid var(--acc)}
 <section class="card">
 <label for="txIn">Teks berjalan (menu Teks di jam)</label>
 <textarea id="txIn" rows="3" maxlength="200" style="width:100%;box-sizing:border-box;margin-top:8px"></textarea>
-<p class="kv"><span id="txCount">0</span>/200 · hanya huruf/angka/tanda baca biasa (emoji dibuang)</p>
+<p class="kv"><span id="txCount">0</span>/200 · huruf/angka/tanda baca biasa + emoji di bawah (emoji lain dibuang / jadi :) ;) :P)</p>
+<div id="txEmoji" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
 </section>
 <button id="txSend">Simpan teks</button>
 <div id="txMsg"></div>
@@ -859,6 +860,21 @@ if (typeof document !== 'undefined') (function () {
   $('dvSave').addEventListener('click', function () { saveDevice(false); });
   $('dvSaveR').addEventListener('click', function () { saveDevice(true); });
   $('txIn').addEventListener('input', function () { $('txCount').textContent = $('txIn').value.length; });
+  // Emoji yang punya ikon di jam (urutan sama dengan tools/emoji_glyphs.py): klik = sisipkan di posisi kursor
+  ['❤️', '\u{1F600}', '\u{1F602}', '\u{1F60D}', '\u{1F622}', '\u{1F621}', '\u{1F44D}', '\u{1F64F}',
+   '\u{1F525}', '⭐', '\u{1F389}', '☀️', '\u{1F319}', '✨', '\u{1F60E}', '\u{1F923}'].forEach(function (e) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'sec mini'; b.textContent = e;
+    b.addEventListener('click', function () {
+      var t = $('txIn'), a = t.selectionStart, z = t.selectionEnd;
+      if (t.value.length - (z - a) + e.length > 200) return;
+      t.value = t.value.slice(0, a) + e + t.value.slice(z);
+      t.selectionStart = t.selectionEnd = a + e.length;
+      t.focus();
+      $('txCount').textContent = t.value.length;
+    });
+    $('txEmoji').appendChild(b);
+  });
   $('txSend').addEventListener('click', function () {
     var t = $('txIn').value.trim();
     if (!t) { txMsg('Teks masih kosong.', 'err'); return; }

@@ -22,3 +22,4 @@ dependencies.lock
 
 # Catatan lokal untuk Claude Code (tidak dipublikasikan)
 CLAUDE.md
+tools/__pycache__/
