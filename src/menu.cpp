@@ -85,23 +85,30 @@ static const AppState MENU_TARGETS[] = {ST_ANIM, ST_TEXT, ST_GAME, ST_PHONE, ST_
 static const int MENU_COUNT = 6;
 static Carousel menuCar = {};
 
+// Ikon yang tampil: iPhone tidak mengirim navigasi Google Maps, jadi Navigasi disembunyikan
+static int visibleMenu(int *idx) {
+  int n = 0;
+  for (int i = 0; i < MENU_COUNT; i++)
+    if (!(MENU_TARGETS[i] == ST_NAV && settings_phoneMode() == PHONE_IPHONE)) idx[n++] = i;
+  return n;
+}
+
 enum SettingItem {
-  SI_WA, SI_BT, SI_BT_RESTART, SI_PHONE, SI_CLOCK, SI_SCREEN, SI_PM_MODE, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
+  SI_WA, SI_BT, SI_BT_RESTART, SI_CLOCK, SI_SCREEN, SI_PM_MODE, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
   SI_GUIDE, SI_UNPAIR, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
-  "Notif pop-up", "Bluetooth", "Restart BT", "Mode HP", "Jam", "Layar mati", "Mode hemat", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
+  "Notif pop-up", "Bluetooth", "Restart BT", "Jam", "Layar mati", "Mode hemat", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
   "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Mode flash", "Reset data", "Update OTA",
   "Panduan iPhone", "Hapus pairing", "Info"
 };
-static const char *PHONE_OPTS[PHONE_MODE_COUNT] = {"Android", "iPhone"};
 
 // Panduan pairing iPhone (maks 21 karakter/baris, sama dengan PANDUAN_IPHONE.md)
 static const char GUIDE_NAME_LINE[] = "   cute_device";
 static const char *const GUIDE_LINES[] = {
-  "1. Setting > Mode HP",
-  "   pilih iPhone",
+  "1. Menu>HP>Mode HP",
+  "   OK: pilih iPhone",
   "2. iPhone: Pengaturan",
   "   > Bluetooth >",
   GUIDE_NAME_LINE,
@@ -441,14 +448,18 @@ void beginRow(int y, int width, int h, bool selected) {
 
 AppState menu_update(bool redraw) {
   static RedrawWatch watch;
-  if (carousel_input(menuCar, MENU_COUNT)) { marquee_reset(); redraw = true; }
+  int vis[MENU_COUNT], n = visibleMenu(vis);
+  if (menuCar.sel >= n) menuCar.sel = n - 1;
+  if (carousel_input(menuCar, n)) { marquee_reset(); redraw = true; }
   if (btn_pressed(BTN_BACK)) return ST_HOME;
-  if (btn_pressed(BTN_OK)) return MENU_TARGETS[menuCar.sel];
+  if (btn_pressed(BTN_OK)) return MENU_TARGETS[vis[menuCar.sel]];
   if (carousel_frameDue(menuCar) || marquee_frameDue()) redraw = true;
 
   if (!redraw_needed(watch, redraw, header_signature)) return ST_MENU;
 
-  carousel_draw(menuCar, "MENU", MENU_ICONS, MENU_COUNT, MENU_ITEMS[menuCar.sel]);
+  const uint8_t *icons[MENU_COUNT];
+  for (int i = 0; i < n; i++) icons[i] = MENU_ICONS[vis[i]];
+  carousel_draw(menuCar, "MENU", icons, n, MENU_ITEMS[vis[menuCar.sel]]);
   oled_flush();
   return ST_MENU;
 }
@@ -459,7 +470,6 @@ static String settingValue(int item) {
   switch (item) {
     case SI_WA:       return NOTIF_OPTS[settings_notifMode()];
     case SI_BT:       return settings_bt() ? "ON" : "OFF";
-    case SI_PHONE:    return PHONE_OPTS[settings_phoneMode()];
     case SI_CLOCK:    return clock_sourceName();
     case SI_BT_RESTART:
       if (btRestartAt && millis() - btRestartAt < BT_RESTART_SHOW_MS) {
@@ -510,11 +520,6 @@ static void activateSetting(int item) {
   switch (item) {
     case SI_WA:       settings_setNotifMode((NotifMode)(settings_notifMode() + 1)); break;
     case SI_BT:       settings_setBt(!settings_bt()); break;
-    case SI_PHONE:
-      // ble_update() menghentikan BLE lama & memulai mode baru secara otomatis
-      settings_setPhoneMode((PhoneMode)(settings_phoneMode() + 1));
-      if (settings_phoneMode() == PHONE_IPHONE) { guideOpen = true; guideTop = 0; }
-      break;
     case SI_GUIDE:    guideOpen = true; guideTop = 0; break;
     case SI_BT_RESTART:
       if (millis() < btRestartConfirmUntil) {

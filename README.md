@@ -51,15 +51,17 @@ Library dipasang otomatis oleh PlatformIO dari `lib_deps` di [`platformio.ini`](
 **HP**
 - Notifikasi: pop-up WhatsApp (atau semua aplikasi), riwayat 10 notifikasi, pesan panjang bergulir.
 - Panggilan masuk (nama penelepon); iPhone: angkat/tolak.
-- Musik: judul/artis + kontrol putar, volume.
+- Musik: judul/artis; OK = putar/jeda, ketuk kiri/kanan = volume -/+, tahan kiri/kanan = lagu sebelumnya/berikutnya.
 - Cuaca (Android), navigasi Google Maps belok-demi-belok (Android).
 - Remote kamera (Bluetooth HID "Volume Up") dengan timer.
 
 **Animasi** — animasi boot & menu dari partisi `frames` (format FRM1/FRM2 terkompresi), dibuat dengan
 `tools/make_frames.py` dari GIF / PNG / frame lama, diunggah lewat halaman OTA.
 
-**Teks** — running text besar di menu utama (kiri/kanan = kecepatan, OK = jeda). Isi teks (maks 200 karakter)
-diatur lewat halaman OTA, tab **Teks**.
+**Teks** — running text besar di menu utama (kiri/kanan = kecepatan, OK = jeda). Isi teks (maks 200 karakter,
+huruf/angka/tanda baca biasa; emoji tidak bisa karena font OLED hanya ASCII) diatur lewat halaman OTA, tab **Teks**.
+**Tahan OK** = menu WiFi: Hidupkan OTA (teks tetap berjalan, ubah dari HP langsung tampil; Bluetooth mati selama OTA),
+BACK kembali ke teks. Keluar dari Teks = OTA mati.
 
 **Game** (menu Game, hi-score tersimpan)
 | Game | Mode |
@@ -94,7 +96,7 @@ berlaku setelah restart, kosongkan nama = kembali ke `cute_device`. **Reset data
 ## Cara pakai di Android
 
 1. Pasang aplikasi **Chronos** dari Play Store.
-2. Di jam: **Setting → Mode HP → Android** (bawaan) dan **Setting → Bluetooth → ON**.
+2. Di jam: **Menu → HP → Mode HP → Android** (bawaan) dan **Setting → Bluetooth → ON**.
 3. Buka Chronos → tambah jam / scan → pilih **cute_device**. Setelah tersambung, pojok kanan atas jam berubah
    dari `bt` menjadi `BT` (+ baterai HP) dan jam di Beranda langsung sinkron.
 4. Beri izin yang diminta Chronos, terutama **akses notifikasi**, lalu di Chronos aktifkan notifikasi untuk
@@ -110,7 +112,7 @@ Jam tidak tersinkron? **Setting → Jam → Sync HP**, atau **Setting → Restar
 
 Tidak perlu aplikasi (memakai Bluetooth bawaan iOS: notifikasi, musik, jam). Ringkas:
 
-1. Di jam: **Setting → Mode HP → iPhone** (panduan singkat muncul di layar).
+1. Di jam: **Menu → HP → Mode HP → iPhone** (OK mengganti mode; panduan di Setting → Panduan iPhone). Mode iPhone menyembunyikan Navigasi dan Cuaca (iPhone tidak mengirim datanya).
 2. Di iPhone: **Pengaturan → Bluetooth → cute_device → Pasangkan**, lalu **Izinkan** "Bagikan Notifikasi Sistem".
 3. Agar isi pesan WhatsApp ikut tampil: **Pengaturan → Notifikasi → WhatsApp → Tampilkan Pratinjau → Selalu**.
 

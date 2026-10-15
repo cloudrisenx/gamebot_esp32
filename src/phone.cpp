@@ -13,9 +13,10 @@ extern Adafruit_SSD1306 display;
 
 enum PhoneScreen { PS_LIST, PS_NOTIF_LIST, PS_NOTIF_DETAIL, PS_MUSIC, PS_CAMERA, PS_WEATHER };
 
-static const char *ITEMS[] = {"Notifikasi", "Musik", "Kamera", "Cuaca"};
-static const PhoneScreen ITEM_SCREENS[] = {PS_NOTIF_LIST, PS_MUSIC, PS_CAMERA, PS_WEATHER};
-static const int ITEM_COUNT = 4;
+// "Mode HP" (Android/iPhone) diganti langsung di kartunya (OK), tanpa layar sendiri
+enum PhoneItem { PI_NOTIF, PI_MUSIC, PI_CAMERA, PI_WEATHER, PI_MODE, ITEM_COUNT };
+static const char *ITEMS[] = {"Notifikasi", "Musik", "Kamera", "Cuaca", "Mode HP"};
+static const PhoneScreen ITEM_SCREENS[] = {PS_NOTIF_LIST, PS_MUSIC, PS_CAMERA, PS_WEATHER, PS_LIST};
 static const uint8_t PROGMEM ICON_PHONE_NOTIF[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00,
   0x00, 0x07, 0xE0, 0x00, 0x00, 0x0F, 0xF0, 0x00, 0x00, 0x3C, 0x3C, 0x00, 0x00, 0x70, 0x0E, 0x00,
@@ -56,14 +57,27 @@ static const uint8_t PROGMEM ICON_PHONE_CAMERA[] = {
   0x30, 0x03, 0xC0, 0x0C, 0x30, 0x00, 0x00, 0x0C, 0x1F, 0xFF, 0xFF, 0xF8, 0x0F, 0xFF, 0xFF, 0xF0,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-static const uint8_t *const ITEM_ICONS[] = {ICON_PHONE_NOTIF, ICON_PHONE_MUSIC, ICON_PHONE_CAMERA, ICON_PHONE_WEATHER};
+static const uint8_t PROGMEM ICON_PHONE_MODE[] = {  // dua HP + panah tukar (Android <-> iPhone)
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3F, 0xF8, 0x1F, 0xFC, 0x20, 0x08, 0x10, 0x04,
+  0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x90, 0x04,
+  0x20, 0x0B, 0xD0, 0x04, 0x20, 0x08, 0x90, 0x04, 0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04,
+  0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04, 0x20, 0x09, 0x10, 0x04, 0x20, 0x0B, 0xD0, 0x04,
+  0x20, 0x09, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04, 0x20, 0x08, 0x10, 0x04,
+  0x23, 0x88, 0x11, 0xC4, 0x20, 0x08, 0x10, 0x04, 0x3F, 0xF8, 0x1F, 0xFC, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+static const uint8_t *const ITEM_ICONS[] = {ICON_PHONE_NOTIF, ICON_PHONE_MUSIC, ICON_PHONE_CAMERA, ICON_PHONE_WEATHER,
+                                              ICON_PHONE_MODE};
 static const uint32_t DELETE_HOLD_MS = 800;  // tahan OK di daftar Notifikasi = hapus
 static const uint32_t DELETED_SHOW_MS = 800;
 static const int DETAIL_LINES = 5;
 static const int DETAIL_COLS = 20;     // detail: kolom ke-21 untuk penanda scroll v/^
 static const int CARD_COLS = 21;
-static const uint32_t HOLD_MS = 600;    // tahan UP/DOWN di Musik = volume
-static const uint32_t REPEAT_MS = 300;
+// Musik: ketuk kiri/kanan = volume (salah tekan tidak berakibat besar), TAHAN = ganti lagu (disengaja)
+static const uint32_t TRACK_HOLD_MS = 600;
+static const uint32_t TRACK_HINT_MS = 150;   // tahan lebih dari ini: kotak "lagu" + bar mulai tampil
+static const uint32_t TRACK_SHOW_MS = 800;   // "Lagu berikutnya/sebelumnya" tampil sesudah berganti
 
 static PhoneScreen screen = PS_LIST;
 static Carousel itemCar = {};
@@ -86,14 +100,15 @@ static uint32_t camShotAt = 0;     // waktu jepret terakhir (kilat + "Jepret!")
 static bool camShotOk = false;
 
 
-// Tahan/ketuk UP-DOWN di layar Musik
+// Tahan/ketuk kiri-kanan di layar Musik
+static const Btn MUSIC_LEFT = MENU_SWAP_LR ? BTN_DOWN : BTN_UP, MUSIC_RIGHT = MENU_SWAP_LR ? BTN_UP : BTN_DOWN;
 static int holdBtn = -1;
-static uint32_t holdStart = 0, lastRepeat = 0;
-static bool repeated = false;
+static uint32_t holdStart = 0;
+static bool repeated = false;       // tahan ini sudah mengganti lagu (lepas tidak mengubah volume)
+static int trackDir = 0;            // -1/+1: lagu baru saja diganti (kotak tampil sampai trackUntil)
+static uint32_t trackUntil = 0;
 
 // ---------- Layar Musik ----------
-static const uint8_t PROGMEM ICON_PREV[] = {0x00, 0x89, 0x9B, 0xBF, 0xFF, 0xBF, 0x9B, 0x89};
-static const uint8_t PROGMEM ICON_NEXT[] = {0x00, 0x91, 0xD9, 0xFD, 0xFF, 0xFD, 0xD9, 0x91};
 static const uint8_t PROGMEM ICON_PLAY[] = {0x40, 0x70, 0x7C, 0x7F, 0x7C, 0x70, 0x40, 0x00};
 static const uint8_t PROGMEM ICON_PAUSE[] = {0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x00};
 static const uint8_t PROGMEM ICON_NOTE[] = {0x0C, 0x0E, 0x0B, 0x09, 0x08, 0x78, 0xF8, 0x70};
@@ -105,7 +120,7 @@ static const int TITLE_LEFT = 2, TITLE_W = 124;       // area judul 2..125
 static const int EQ_BARS = 7, EQ_X = 100, EQ_BASE = 50, EQ_MAX = 10;
 static const uint32_t EQ_STEP_MS = 120;
 static const int CTRL_Y = 55;
-static const int CTRL_X[3] = {17, 60, 103};            // ikon prev / play-pause / next (tengah kolom)
+static const int CTRL_X[3] = {17, 60, 103};            // VOL- / play-pause / VOL+ (tengah kolom)
 static const uint32_t FEEDBACK_MS = 300, VOL_SHOW_MS = 800;
 static const int VOL_SEGMENTS = 8;
 static const uint32_t ANIM_FRAME_MS = 50;
@@ -128,7 +143,8 @@ static const char *WEATHER_NAMES[] = {"Cerah berawan", "Cerah", "Salju", "Hujan"
 static void startScreen(PhoneScreen s) {
   screen = s;
   holdBtn = -1;
-  feedbackUntil = volUntil = 0;
+  feedbackUntil = volUntil = trackUntil = 0;
+  holdBtn = -1;
   okHolding = false;
   camTimerEnd = 0;
   if (s == PS_CAMERA) camLoadTimer();
@@ -168,12 +184,26 @@ static bool showNotConnected() {
   return true;
 }
 
+// Kartu yang tampil: iPhone tidak mengirim data cuaca, jadi Cuaca disembunyikan
+static int visibleItems(int *idx) {
+  int n = 0;
+  for (int i = 0; i < ITEM_COUNT; i++)
+    if (!(i == PI_WEATHER && settings_phoneMode() == PHONE_IPHONE)) idx[n++] = i;
+  return n;
+}
+
 static void drawList() {
-  // Notifikasi: jumlah riwayat ikut di nama, mis. "Notifikasi (3)"
+  int vis[ITEM_COUNT], n = visibleItems(vis);
+  if (itemCar.sel >= n) itemCar.sel = n - 1;
+  const uint8_t *icons[ITEM_COUNT];
+  for (int i = 0; i < n; i++) icons[i] = ITEM_ICONS[vis[i]];
+  int item = vis[itemCar.sel];
+  // Notifikasi: jumlah riwayat ikut di nama, mis. "Notifikasi (3)"; Mode HP: pilihan sekarang
   char name[24];
-  if (itemCar.sel == 0 && ble_historyCount()) snprintf(name, sizeof(name), "%s (%d)", ITEMS[0], ble_historyCount());
-  else snprintf(name, sizeof(name), "%s", ITEMS[itemCar.sel]);
-  carousel_draw(itemCar, "HP", ITEM_ICONS, ITEM_COUNT, name);
+  if (item == PI_NOTIF && ble_historyCount()) snprintf(name, sizeof(name), "%s (%d)", ITEMS[item], ble_historyCount());
+  else if (item == PI_MODE) snprintf(name, sizeof(name), "Mode: %s", settings_phoneMode() == PHONE_IPHONE ? "iPhone" : "Android");
+  else snprintf(name, sizeof(name), "%s", ITEMS[item]);
+  carousel_draw(itemCar, "HP", icons, n, name);
 }
 
 // Isi satu kartu notifikasi: pengirim (berjalan bila panjang) + cuplikan pesan 3 baris
@@ -221,7 +251,7 @@ static bool musicPlaying() { return ble_connected() && ble_music().state == 1; }
 static bool musicAnimating() {
   if (!power_screenOn()) return false;
   uint32_t now = millis();
-  if (now < feedbackUntil || now < volUntil) return true;
+  if (now < feedbackUntil || now < volUntil || now < trackUntil || holdBtn >= 0) return true;
   return musicPlaying();  // equalizer
 }
 
@@ -240,13 +270,43 @@ static void drawEqualizer(bool playing) {
 }
 
 static void drawControls(bool connected, bool playing) {
-  const uint8_t *icons[3] = {ICON_PREV, playing ? ICON_PAUSE : ICON_PLAY, ICON_NEXT};
+  // Kiri/kanan = label volume (ketuk); tahan = ganti lagu (kotak di tengah layar). Tengah = putar/jeda.
+  static const char *const VOL_LABEL[3] = {"VOL-", nullptr, "VOL+"};
   for (int i = 0; i < 3; i++) {
     int x = CTRL_X[i];
-    if (!connected) { drawIconGray(x, CTRL_Y, icons[i]); continue; }
-    bool active = i == feedbackIcon && millis() < feedbackUntil;
-    if (active) display.fillRoundRect(x - 3, CTRL_Y - 2, 14, 11, 2, SSD1306_WHITE);
-    display.drawBitmap(x, CTRL_Y, icons[i], 8, 8, active ? SSD1306_BLACK : SSD1306_WHITE);
+    bool active = connected && i == feedbackIcon && millis() < feedbackUntil;
+    if (i == 1) {
+      const uint8_t *icon = playing ? ICON_PAUSE : ICON_PLAY;
+      if (!connected) { drawIconGray(x, CTRL_Y, icon); continue; }
+      if (active) display.fillRoundRect(x - 3, CTRL_Y - 2, 14, 11, 2, SSD1306_WHITE);
+      display.drawBitmap(x, CTRL_Y, icon, 8, 8, active ? SSD1306_BLACK : SSD1306_WHITE);
+    } else {
+      int tx = x + 4 - 12;  // label 4 huruf (24 px) dipusatkan di kolom
+      if (active) display.fillRoundRect(tx - 2, CTRL_Y - 2, 28, 11, 2, SSD1306_WHITE);
+      display.setTextColor(active ? SSD1306_BLACK : SSD1306_WHITE);
+      display.setCursor(tx, CTRL_Y);
+      display.print(VOL_LABEL[i]);
+      display.setTextColor(SSD1306_WHITE);
+    }
+  }
+}
+
+// Kotak "lagu": saat kiri/kanan ditahan (bar terisi sampai TRACK_HOLD_MS) dan sesaat setelah lagu berganti
+static void drawTrackOverlay() {
+  uint32_t now = millis();
+  bool holding = holdBtn >= 0 && !repeated && now - holdStart >= TRACK_HINT_MS;
+  if (!holding && now >= trackUntil) return;
+  int dir = holding ? (holdBtn == MUSIC_RIGHT ? 1 : -1) : trackDir;
+  const int bx = 14, by = 14, bw = 100, bh = 28;
+  display.fillRect(bx, by, bw, bh, SSD1306_BLACK);
+  display.drawRect(bx, by, bw, bh, SSD1306_WHITE);
+  if (holding) {
+    centerLine(by + 4, dir > 0 ? "Tahan: lagu >>" : "Tahan: << lagu");
+    uint32_t held = min((uint32_t)(now - holdStart), TRACK_HOLD_MS);
+    display.drawRect(bx + 8, by + 16, bw - 16, 6, SSD1306_WHITE);
+    display.fillRect(bx + 8, by + 16, held * (bw - 16) / TRACK_HOLD_MS, 6, SSD1306_WHITE);
+  } else {
+    centerLine(by + 10, dir > 0 ? "Lagu berikutnya" : "Lagu sebelumnya");
   }
 }
 
@@ -319,6 +379,7 @@ static void drawMusic() {
   }
   drawControls(connected, playing);
   if (connected && millis() < volUntil) drawVolumeOverlay();
+  if (connected) drawTrackOverlay();
 }
 
 static void drawWeather() {
@@ -493,29 +554,31 @@ static void musicTick() {
   }
 }
 
-// Musik: ketuk UP/DOWN = lagu sebelumnya/berikutnya, tahan >= 600ms = volume (berulang)
+// Musik: OK = putar/jeda; ketuk kiri/kanan = volume -/+; tahan kiri/kanan 0,6 dtk = lagu sebelumnya/berikutnya
 static bool musicInput() {
   bool changed = false;
   uint32_t now = millis();
   if (btn_pressed(BTN_OK)) { ble_musicControl(MUSIC_TOGGLE); feedback(1); changed = true; }
-  if (btn_pressed(BTN_UP)) { holdBtn = BTN_UP; holdStart = now; repeated = false; }
-  if (btn_pressed(BTN_DOWN)) { holdBtn = BTN_DOWN; holdStart = now; repeated = false; }
+  if (btn_pressed(MUSIC_LEFT)) { holdBtn = MUSIC_LEFT; holdStart = now; repeated = false; }
+  if (btn_pressed(MUSIC_RIGHT)) { holdBtn = MUSIC_RIGHT; holdStart = now; repeated = false; }
   if (holdBtn >= 0) {
-    bool up = holdBtn == BTN_UP;
+    bool right = holdBtn == MUSIC_RIGHT;
     if (btn_held((Btn)holdBtn)) {
-      if (now - holdStart >= HOLD_MS && now - lastRepeat >= REPEAT_MS) {
-        ble_musicControl(up ? VOLUME_UP : VOLUME_DOWN);
-        volumeStep(up ? 1 : -1);
-        lastRepeat = now;
-        repeated = changed = true;
+      if (!repeated && now - holdStart >= TRACK_HOLD_MS) {
+        ble_musicControl(right ? MUSIC_NEXT : MUSIC_PREVIOUS);
+        trackDir = right ? 1 : -1;
+        trackUntil = now + TRACK_SHOW_MS;
+        repeated = true;
       }
+      changed = true;  // bar tahan terisi
     } else {
-      if (!repeated) {
-        ble_musicControl(up ? MUSIC_PREVIOUS : MUSIC_NEXT);
-        feedback(up ? 0 : 2);
-        changed = true;
+      if (!repeated) {  // ketukan (dilepas sebelum 0,6 dtk) = volume
+        ble_musicControl(right ? VOLUME_UP : VOLUME_DOWN);
+        volumeStep(right ? 1 : -1);
+        feedback(right ? 2 : 0);
       }
       holdBtn = -1;
+      changed = true;
     }
   }
   return changed;
@@ -548,8 +611,18 @@ AppState phone_update(bool redraw) {
   switch (screen) {
     case PS_LIST:
       if (back) return ST_MENU;
-      if (carousel_input(itemCar, ITEM_COUNT)) { marquee_reset(); redraw = true; }
-      if (btn_pressed(BTN_OK)) { startScreen(ITEM_SCREENS[itemCar.sel]); redraw = true; }
+    {
+      int vis[ITEM_COUNT], n = visibleItems(vis);
+      if (itemCar.sel >= n) itemCar.sel = n - 1;
+      if (carousel_input(itemCar, n)) { marquee_reset(); redraw = true; }
+      if (btn_pressed(BTN_OK)) {
+        int item = vis[itemCar.sel];
+        // ble_update() menghentikan BLE lama & memulai mode baru secara otomatis
+        if (item == PI_MODE) settings_setPhoneMode((PhoneMode)(settings_phoneMode() + 1));
+        else startScreen(ITEM_SCREENS[item]);
+        redraw = true;
+      }
+    }
       if (carousel_frameDue(itemCar)) redraw = true;
       break;
 

@@ -7,7 +7,7 @@ Untuk iPhone **tidak perlu aplikasi apa pun** — jam memakai fitur Bluetooth ba
 
 ## 1. Memasangkan (pairing) iPhone
 
-1. Di jam: buka **Setting → Mode HP**, tekan **OK** sampai tertulis **iPhone**.
+1. Di jam: buka **Menu → HP → Mode HP**, tekan **OK** sampai tertulis **Mode: iPhone**.
    Layar panduan singkat akan muncul; tekan **BACK** untuk menutupnya.
 2. Di iPhone: buka **Pengaturan → Bluetooth**, pastikan Bluetooth menyala.
 3. Di bagian **Perangkat Lain**, ketuk **cute_device**.
@@ -53,7 +53,7 @@ menampilkan pesan **"Hanya untuk Android"**.
 2. Di jam: **Setting → Hapus pairing**, tekan **OK** dua kali (tertulis "OK?" lalu "Ok").
 3. Pasangkan iPhone baru dengan langkah di bagian 1.
 
-Untuk kembali ke Android: **Setting → Mode HP → Android**, lalu sambungkan dari aplikasi Chronos seperti biasa.
+Untuk kembali ke Android: **Menu → HP → Mode HP → Android**, lalu sambungkan dari aplikasi Chronos seperti biasa.
 
 ---
 

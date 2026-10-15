@@ -47,6 +47,7 @@ static uint32_t rebootAt = 0;
 static uint32_t statusUntil = 0;    // tampilkan layar status sampai waktu ini
 static int otaStep = 1;             // 1 = sambung WiFi, 2 = buka web
 static int lastStations = 0;
+static bool bgMode = false;         // OTA di latar (menu Teks): layar milik layar Teks
 
 // Upload frames: header 16 byte dikumpulkan dulu (bisa terpecah antar chunk)
 static FramesHeader framesHdr;
@@ -95,6 +96,7 @@ static void drawStatus() {
 }
 
 static void draw() {
+  if (bgMode) return;
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -311,6 +313,7 @@ static void redirectHome() {
 }
 
 void ota_enter() {
+  bgMode = false;
   ble_setSuspended(true);
   password = settings_otaPassword();
   ssid = settings_otaSsid();
@@ -379,6 +382,32 @@ static uint32_t otaSignature() {
   h = sig_mix(h, rebootPending);
   h = sig_mix(h, millis() < statusUntil);
   return sig_str(h, status.c_str());
+}
+
+void ota_bgStart() {
+  if (bgMode) return;
+  ota_enter();
+  bgMode = true;
+}
+
+void ota_bgStop() {
+  if (!bgMode) return;
+  bgMode = false;
+  otaExit();
+}
+
+bool ota_bgRunning() { return bgMode; }
+const String &ota_ssid() { return ssid; }
+const String &ota_password() { return password; }
+
+void ota_bgPoll() {
+  if (!bgMode) return;
+  dns.processNextRequest();
+  server.handleClient();
+  if (rebootPending && (int32_t)(millis() - rebootAt) >= 0) {
+    clock_save("restart OTA");
+    ESP.restart();
+  }
 }
 
 AppState ota_update(bool redraw) {

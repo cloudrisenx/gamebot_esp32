@@ -5,6 +5,7 @@
 #include "power.h"
 #include "screen.h"
 #include "settings.h"
+#include "ota.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -18,6 +19,13 @@ static int speedIdx = 1;
 static bool paused = false;
 static int scrollX = 128;                            // posisi kiri teks
 static uint32_t lastStep = 0;
+
+// Tahan OK = menu WiFi (OTA di latar: ubah teks dari HP, langsung tampil). Ketuk OK = jeda.
+static const uint32_t MENU_HOLD_MS = 600;
+static bool menuOpen = false;
+static bool okDown = false;          // OK sedang ditahan (sejak okDownAt)
+static bool okLong = false;          // tahan ini sudah membuka menu: lepasnya tidak menjeda
+static uint32_t okDownAt = 0;
 
 static void load() {
   if (loaded) return;
@@ -65,14 +73,39 @@ static void draw() {
   display.setCursor(scrollX, TEXT_Y);
   display.print(text);  // huruf di luar layar dilewati oleh GFX (tidak ada biaya gambar)
   display.setTextSize(1);
-  // Status bawah: kecepatan (titik) & jeda
-  for (int i = 0; i < 3; i++) {
-    if (i <= speedIdx) display.fillRect(2 + i * 5, 58, 3, 3, SSD1306_WHITE);
-    else display.drawRect(2 + i * 5, 58, 3, 3, SSD1306_WHITE);
-  }
-  if (paused) {
-    display.fillRect(120, 56, 2, 7, SSD1306_WHITE);
-    display.fillRect(124, 56, 2, 7, SSD1306_WHITE);
+  display.setTextWrap(true);
+  oled_flush();
+}
+
+// Menu WiFi: OK = hidupkan/matikan OTA, BACK = kembali ke teks (OTA tetap seperti dipilih)
+static void drawMenu() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextWrap(false);
+  display.setTextColor(SSD1306_WHITE);
+  bool on = ota_bgRunning();
+  display.setCursor(0, 0);
+  display.print("WIFI UBAH TEKS");
+  display.drawFastHLine(0, 9, 128, SSD1306_WHITE);
+  display.fillRoundRect(0, 13, 128, 13, 3, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK);
+  display.setCursor(on ? 22 : 19, 16);
+  display.print(on ? "Matikan OTA" : "Hidupkan OTA");
+  display.setTextColor(SSD1306_WHITE);
+  if (on) {
+    display.setCursor(0, 30);
+    display.print("WiFi: ");
+    display.print(ota_ssid());
+    display.setCursor(0, 40);
+    display.print("Pass: ");
+    display.print(ota_password());
+    display.setCursor(0, 50);
+    display.print("Buka 192.168.4.1");
+  } else {
+    display.setCursor(0, 32);
+    display.print("Ubah teks dari HP:");
+    display.setCursor(0, 42);
+    display.print("tab Teks di web OTA");
   }
   display.setTextWrap(true);
   oled_flush();
@@ -80,6 +113,7 @@ static void draw() {
 
 void text_enter() {
   load();
+  menuOpen = okDown = okLong = false;
   scrollX = 128;
   paused = false;
   lastStep = millis();
@@ -89,10 +123,42 @@ void text_enter() {
 
 AppState text_update(bool redraw) {
   Btn leftBtn = MENU_SWAP_LR ? BTN_DOWN : BTN_UP, rightBtn = MENU_SWAP_LR ? BTN_UP : BTN_DOWN;
-  if (btn_pressed(BTN_BACK)) return ST_MENU;
+  ota_bgPoll();  // teks dari HP langsung berlaku (text_set)
+
+  // OK: ketuk = jeda (dinilai saat dilepas), tahan MENU_HOLD_MS = buka menu WiFi (sekali per tahan)
+  if (btn_pressed(BTN_OK)) { okDown = true; okLong = false; okDownAt = millis(); }
+  bool okTap = false;
+  if (okDown) {
+    if (!btn_held(BTN_OK)) {
+      okDown = false;
+      okTap = !okLong;
+    } else if (!okLong && !menuOpen && millis() - okDownAt >= MENU_HOLD_MS) {
+      okLong = true;
+      menuOpen = true;
+      redraw = true;
+    }
+  }
+
+  if (menuOpen) {
+    if (btn_pressed(BTN_BACK)) { menuOpen = false; lastStep = millis(); draw(); return ST_TEXT; }
+    if (okTap) {
+      if (ota_bgRunning()) ota_bgStop();
+      else ota_bgStart();
+      redraw = true;
+    }
+    buttons_clear();
+    static uint32_t lastMenuDraw = 0;
+    if (redraw || millis() - lastMenuDraw >= 1000) { lastMenuDraw = millis(); drawMenu(); }
+    return ST_TEXT;
+  }
+
+  if (btn_pressed(BTN_BACK)) {
+    ota_bgStop();  // keluar dari Teks = WiFi OTA mati
+    return ST_MENU;
+  }
   if (btn_pressed(leftBtn) && speedIdx > 0) { speedIdx--; redraw = true; }
   if (btn_pressed(rightBtn) && speedIdx < 2) { speedIdx++; redraw = true; }
-  if (btn_pressed(BTN_OK)) { paused = !paused; redraw = true; }
+  if (okTap) { paused = !paused; redraw = true; }
 
   uint32_t now = millis();
   if (!paused && now - lastStep >= STEP_MS) {

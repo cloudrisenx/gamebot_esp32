@@ -299,7 +299,7 @@ static void stopAll() {
 void ble_update() {
   bool wanted = !suspended && (settings_bt() || navScreenOpen);
   PhoneMode mode = settings_phoneMode();
-  if (mode != activeMode) {  // Mode HP diganti di Setting: hentikan BLE lama dulu
+  if (mode != activeMode) {  // Mode HP diganti (menu HP): hentikan BLE lama dulu
     stopAll();
     activeMode = mode;
     phoneInfoChanged = navChanged = true;
