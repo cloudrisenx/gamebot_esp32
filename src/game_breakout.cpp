@@ -1,4 +1,5 @@
 #include "game_breakout.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include "buttons.h"
@@ -167,7 +168,7 @@ static void draw() {
   display.fillRect(fx + (int)bx, (int)by, BALL, BALL, SSD1306_WHITE);
   games_drawSidePanels(score, settings_hiscore(GAME_BREAKOUT), lives, level + 1);
 
-  if (attached && phase == PH_PLAY) games_centerText(40, "OK:luncur");
+  if (attached && phase == PH_PLAY) games_centerText(40, T("OK:luncur", "OK:launch"));
   if (phase == PH_OVER) games_drawOver(score, settings_hiscore(GAME_BREAKOUT));
   oled_flush();
 }
@@ -205,7 +206,8 @@ bool breakout_update(bool redraw) {
     if (!ok) {
       if (redraw) {
         static const char *const CONTROLS[] = {"Kiri/kanan: gerak", "OK: luncur"};
-        games_drawReady("BREAKOUT", CONTROLS, 2, settings_hiscore(GAME_BREAKOUT));
+        static const char *const CONTROLS_EN[] = {"Left/right: move", "OK: launch"};
+        games_drawReady("BREAKOUT", LT(CONTROLS, CONTROLS_EN), 2, settings_hiscore(GAME_BREAKOUT));
       }
       return true;
     }

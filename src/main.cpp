@@ -4,6 +4,7 @@
  */
 
 #include <Wire.h>
+#include "lang.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <esp_ota_ops.h>
@@ -170,7 +171,7 @@ static bool handleCall() {
   buttons_clear();
   if (lastDraw == 0 || millis() - lastDraw >= 500 || marquee_frameDue()) {  // kedip ikon / nama berjalan
     lastDraw = millis();
-    call_draw(callName, (millis() / 500) % 2 == 0, iphone ? "OK angkat BACK tolak" : "BACK: sembunyikan");
+    call_draw(callName, (millis() / 500) % 2 == 0, iphone ? T("OK angkat BACK tolak", "OK answer BACK reject") : T("BACK: sembunyikan", "BACK: hide"));
   }
   return true;
 }

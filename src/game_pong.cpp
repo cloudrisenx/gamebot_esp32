@@ -1,4 +1,5 @@
 #include "game_pong.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
@@ -235,7 +236,7 @@ static void draw1P() {
   if (smashReady(0)) {
     display.fillRect(0, 49, 26, 10, SSD1306_WHITE);
     display.setTextColor(SSD1306_BLACK);
-    display.setCursor(1, 50); display.print("SIAP");
+    display.setCursor(1, 50); display.print(T("SIAP", "RDY"));
     display.setTextColor(SSD1306_WHITE);
   } else {
     display.setCursor(0, 49); display.print("SMSH");
@@ -316,12 +317,12 @@ static void drawOver2P() {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.drawRect(14, 6, 100, 52, SSD1306_WHITE);
-  centerText(12, winner == 1 ? "P1 MENANG" : "P2 MENANG", 1);
+  centerText(12, winner == 1 ? T("P1 MENANG", "P1 WINS") : T("P2 MENANG", "P2 WINS"), 1);
   char buf[12];
   snprintf(buf, sizeof(buf), "%d - %d", p1Score, p2Score);
   centerText(24, buf, 2);
-  centerText(40, "OK: ulang");
-  if (millis() - overAt >= OVER_BACK_DELAY_MS) centerText(48, "BACK: keluar");
+  centerText(40, T("OK: ulang", "OK: again"));
+  if (millis() - overAt >= OVER_BACK_DELAY_MS) centerText(48, T("BACK: keluar", "BACK: exit"));
   oled_flush();
 }
 
@@ -360,8 +361,8 @@ static void drawReady() {
   snprintf(modeLine, sizeof(modeLine), "< %s >", mode == MODE_2P ? "2P vs 2P" : "1P vs CPU");
   static const char *controls[3];
   controls[0] = modeLine;
-  controls[1] = mode == MODE_2P ? "Keluar: saat menang" : "Kiri/kanan: gerak";
-  controls[2] = "Kiri+kanan: smash";
+  controls[1] = mode == MODE_2P ? T("Keluar: saat menang", "Exit: after a win") : T("Kiri/kanan: gerak", "Left/right: move");
+  controls[2] = T("Kiri+kanan: smash", "Left+right: smash");
   games_drawReady("PONG", controls, 3, settings_hiscore(GAME_PONG));
 }
 

@@ -1,4 +1,5 @@
 #include "games.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include "buttons.h"
@@ -117,7 +118,7 @@ static void drawList() {
   // Header tengah: hi-score game yang dipilih ("Hi" pendek agar tidak menabrak status BT di kanan)
   char best[16];
   snprintf(best, sizeof(best), "Hi %u", (unsigned)settings_hiscore(GAMES[car.sel].id));
-  carousel_draw(car, best, GAME_ICONS, GAME_LIST_COUNT, GAMES[car.sel].name);
+  carousel_draw(car, best, GAME_ICONS, GAME_LIST_COUNT, !strcmp(GAMES[car.sel].name, "Hitung") ? T("Hitung", "Math") : GAMES[car.sel].name);
   oled_flush();
 }
 
@@ -175,8 +176,8 @@ void games_drawReady(const char *title, const char *const *controls, int count, 
   int y;
   if (portrait) {
     games_centerText(4, title);
-    games_centerText(20, "Putar");
-    games_centerText(29, "layar");
+    games_centerText(20, T("Putar", "Rotate"));
+    games_centerText(29, T("layar", "screen"));
     // Panah putar: 3/4 lingkaran + kepala panah
     display.drawCircleHelper(32, 48, 7, 0x1 | 0x2 | 0x4, SSD1306_WHITE);
     display.fillTriangle(31, 52, 31, 58, 27, 55, SSD1306_WHITE);
@@ -188,7 +189,7 @@ void games_drawReady(const char *title, const char *const *controls, int count, 
   for (int i = 0; i < count; i++, y += 9) games_centerText(y, controls[i]);
   y += portrait ? 6 : 2;
   games_centerText(y, "Best " + String(best));
-  games_centerText(display.height() - 10, "OK: mulai");
+  games_centerText(display.height() - 10, T("OK: mulai", "OK: start"));
   oled_flush();
 }
 
@@ -203,11 +204,11 @@ void games_drawOver(uint32_t score, uint32_t best) {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   games_centerText(y + 4, "GAME OVER");
-  games_centerText(y + 14, "Skor " + String(score));
+  games_centerText(y + 14, T("Skor ", "Score ") + String(score));
   games_centerText(y + 23, "Best " + String(best));
-  games_centerText(y + 32, "OK:ulang");
+  games_centerText(y + 32, T("OK:ulang", "OK:again"));
   // Lebar potret hanya 10 karakter
-  games_centerText(y + 41, portrait ? "BACK:balik" : "BACK:keluar");
+  games_centerText(y + 41, portrait ? T("BACK:balik", "BACK:back") : T("BACK:keluar", "BACK:exit"));
 }
 
 void games_drawLives(int lives) {
@@ -243,7 +244,7 @@ void games_drawSidePanels(uint32_t score, uint32_t hi, int lives, int level) {
   display.setTextColor(SSD1306_WHITE);
   display.setTextWrap(false);
   // Kiri: SCORE / HI (x 0..28)
-  display.setCursor(0, 2); display.print("SKOR");
+  display.setCursor(0, 2); display.print(T("SKOR", "PTS"));
   printShort(0, 12, score);
   display.drawFastHLine(0, 22, left - 3, SSD1306_WHITE);
   display.setCursor(0, 26); display.print("HI");

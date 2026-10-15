@@ -13,6 +13,7 @@
 #include <esp_ota_ops.h>
 
 #include "version.h"
+#include "lang.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -79,6 +80,7 @@ static const uint8_t PROGMEM ICON_MENU_SETTINGS[] = {
 };
 
 static const char *MENU_ITEMS[] = {"Animasi", "Teks", "Game", "HP", "Navigasi", "Setting"};
+static const char *MENU_ITEMS_EN[] = {"Animation", "Text", "Game", "Phone", "Navigation", "Settings"};
 static const uint8_t *const MENU_ICONS[] = {ICON_MENU_ANIM, ICON_MENU_TEXT, ICON_MENU_GAME, ICON_MENU_PHONE,
                                             ICON_MENU_NAV, ICON_MENU_SETTINGS};
 static const AppState MENU_TARGETS[] = {ST_ANIM, ST_TEXT, ST_GAME, ST_PHONE, ST_NAV, ST_SETTINGS};
@@ -94,17 +96,22 @@ static int visibleMenu(int *idx) {
 }
 
 enum SettingItem {
-  SI_WA, SI_BT, SI_BT_RESTART, SI_CLOCK, SI_SCREEN, SI_PM_MODE, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
+  SI_WA, SI_BT, SI_BT_RESTART, SI_CLOCK, SI_LANG, SI_SCREEN, SI_PM_MODE, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
   SI_GUIDE, SI_UNPAIR, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
-  "Notif pop-up", "Bluetooth", "Restart BT", "Jam", "Layar mati", "Mode hemat", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
+  "Notif pop-up", "Bluetooth", "Restart BT", "Jam", "Bahasa", "Layar mati", "Mode hemat", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
   "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Mode flash", "Reset data", "Update OTA",
   "Panduan iPhone", "Hapus pairing", "Info"
 };
+static const char *SETTING_LABELS_EN[SI_COUNT] = {
+  "Notif pop-up", "Bluetooth", "Restart BT", "Clock", "Language", "Screen off", "Power save", "Night", "Brightness", "OLED I2C", "OLED test",
+  "Boot animation", "Reset hi-score", "Sleep now", "Restart", "Flash mode", "Reset data", "OTA update",
+  "iPhone guide", "Remove pairing", "Info"
+};
 
-// Panduan pairing iPhone (maks 21 karakter/baris, sama dengan PANDUAN_IPHONE.md)
+// Panduan pairing iPhone (maks 21 karakter/baris, sama dengan docs/IPHONE_GUIDE.md)
 static const char GUIDE_NAME_LINE[] = "   cute_device";
 static const char *const GUIDE_LINES[] = {
   "1. Menu>HP>Mode HP",
@@ -128,11 +135,36 @@ static const char *const GUIDE_LINES[] = {
   "7. Hanya Android:",
   "   Navigasi & Cuaca"
 };
+static const char *const GUIDE_LINES_EN[] = {
+  "1. Menu>Phone>Mode",
+  "   OK: pick iPhone",
+  "2. iPhone: Settings",
+  "   > Bluetooth >",
+  GUIDE_NAME_LINE,
+  "   > Pair",
+  "3. Allow: Share",
+  "   System Notifs",
+  "4. Notifications >",
+  "   WhatsApp >",
+  "  Show Previews",
+  "   = Always",
+  "5. Not in the list?",
+  "   Open nRF Connect/",
+  "   LightBlue, Connect",
+  "6. New phone: Forget",
+  "  Device on iPhone",
+  "   + Remove pairing",
+  "7. Android only:",
+  "   Navigation&Weather"
+};
 static const int GUIDE_COUNT = sizeof(GUIDE_LINES) / sizeof(GUIDE_LINES[0]);
+static_assert(sizeof(GUIDE_LINES) == sizeof(GUIDE_LINES_EN), "panduan ID/EN harus sama panjang");
 static const int GUIDE_ROWS = 5;
 static const char *NOTIF_OPTS[NOTIF_MODE_COUNT] = {"OFF", "WhatsApp", "Semua"};
+static const char *NOTIF_OPTS_EN[NOTIF_MODE_COUNT] = {"OFF", "WhatsApp", "All"};
 static const char *SCREEN_OPTS[SCREEN_OPT_COUNT] = {"15s", "30s", "60s", "OFF"};
 static const char *CONTRAST_OPTS[CONTRAST_OPT_COUNT] = {"Rendah", "Sedang", "Tinggi"};
+static const char *CONTRAST_OPTS_EN[CONTRAST_OPT_COUNT] = {"Low", "Medium", "High"};
 static const uint32_t RESET_CONFIRM_MS = 3000;
 
 static Carousel settingCar = {};  // kartu Setting (sel = SettingItem)
@@ -459,7 +491,7 @@ AppState menu_update(bool redraw) {
 
   const uint8_t *icons[MENU_COUNT];
   for (int i = 0; i < n; i++) icons[i] = MENU_ICONS[vis[i]];
-  carousel_draw(menuCar, "MENU", icons, n, MENU_ITEMS[vis[menuCar.sel]]);
+  carousel_draw(menuCar, "MENU", icons, n, LT(MENU_ITEMS, MENU_ITEMS_EN)[vis[menuCar.sel]]);
   oled_flush();
   return ST_MENU;
 }
@@ -468,20 +500,21 @@ static void drawFullMessage(const char *l1, const char *l2);
 
 static String settingValue(int item) {
   switch (item) {
-    case SI_WA:       return NOTIF_OPTS[settings_notifMode()];
+    case SI_WA:       return LT(NOTIF_OPTS, NOTIF_OPTS_EN)[settings_notifMode()];
     case SI_BT:       return settings_bt() ? "ON" : "OFF";
     case SI_CLOCK:    return clock_sourceName();
+    case SI_LANG:     return T("Indonesia", "English");
     case SI_BT_RESTART:
       if (btRestartAt && millis() - btRestartAt < BT_RESTART_SHOW_MS) {
         if (!settings_bt()) return "BT OFF";
         if (millis() - btRestartAt < BT_RESTART_WAIT_MS) return "Restart..";
-        return ble_running() ? "Ok" : "Gagal";
+        return ble_running() ? "Ok" : T("Gagal", "Failed");
       }
-      if (millis() < btRestartConfirmUntil) return "OK lagi?";
+      if (millis() < btRestartConfirmUntil) return T("OK lagi?", "OK again?");
       return ">";
     case SI_UNPAIR:
       if (settings_phoneMode() != PHONE_IPHONE) return "-";
-      if (millis() < unpairDoneUntil) return unpairOk ? "Ok" : "Gagal";
+      if (millis() < unpairDoneUntil) return unpairOk ? "Ok" : T("Gagal", "Failed");
       if (millis() < unpairConfirmUntil) return "OK?";
       return ">";
     case SI_SCREEN:   return SCREEN_OPTS[settings_screenIdx()];
@@ -491,7 +524,7 @@ static String settingValue(int item) {
       settings_nightLabel(buf, sizeof(buf));
       return buf;
     }
-    case SI_CONTRAST: return CONTRAST_OPTS[settings_contrastIdx()];
+    case SI_CONTRAST: return LT(CONTRAST_OPTS, CONTRAST_OPTS_EN)[settings_contrastIdx()];
     case SI_OLED_I2C: {
       // Pilihan; bila OLED tidak menjawab di clock itu, tampil clock yang dipakai: "800>400k"
       uint32_t want = settings_i2cHz() / 1000, got = oled_clockHz() / 1000;
@@ -501,14 +534,14 @@ static String settingValue(int item) {
       return buf;
     }
     case SI_OLED_TEST: return ">";
-    case SI_RESTART:    return millis() < restartConfirmUntil ? "OK lagi?" : ">";
-    case SI_RESET_DATA: return millis() < resetDataConfirmUntil ? "OK lagi?" : ">";
-    case SI_FLASH_MODE: return millis() < flashConfirmUntil ? "OK lagi?" : ">";
+    case SI_RESTART:    return millis() < restartConfirmUntil ? T("OK lagi?", "OK again?") : ">";
+    case SI_RESET_DATA: return millis() < resetDataConfirmUntil ? T("OK lagi?", "OK again?") : ">";
+    case SI_FLASH_MODE: return millis() < flashConfirmUntil ? T("OK lagi?", "OK again?") : ">";
     case SI_BOOTANIM: return settings_bootAnim() ? "ON" : "OFF";
     case SI_RESET_HI:
       if (millis() < resetDoneUntil) return "Reset!";
-      if (millis() < resetConfirmUntil) return "OK lagi?";
-      return String(GAME_COUNT) + " game";
+      if (millis() < resetConfirmUntil) return T("OK lagi?", "OK again?");
+      return String(GAME_COUNT) + T(" game", " games");
     case SI_OTA:
     case SI_GUIDE:
     case SI_INFO:     return ">";
@@ -519,6 +552,7 @@ static String settingValue(int item) {
 static void activateSetting(int item) {
   switch (item) {
     case SI_WA:       settings_setNotifMode((NotifMode)(settings_notifMode() + 1)); break;
+    case SI_LANG:     settings_setLang(settings_lang() + 1); break;
     case SI_BT:       settings_setBt(!settings_bt()); break;
     case SI_GUIDE:    guideOpen = true; guideTop = 0; break;
     case SI_BT_RESTART:
@@ -589,7 +623,7 @@ static void activateSetting(int item) {
       if (millis() < flashConfirmUntil) {
         // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
         // Keluar dari download mode: flash/esptool hard reset.
-        drawFullMessage("Mode flash", "flash via USB");
+        drawFullMessage(T("Mode flash", "Flash mode"), "flash via USB");
         Serial.println("[SETTING] reboot ke mode download (flash USB)");
         clock_save("flash");
         ble_shutdown();
@@ -606,7 +640,7 @@ static void activateSetting(int item) {
       if (millis() < resetDataConfirmUntil) {
         // Hapus SELURUH partisi NVS: setting, hi-score, mode game, jam & cuaca tersimpan, teks berjalan,
         // timer kamera, status & data pairing Bluetooth. Partisi animasi (frames) dan firmware tidak tersentuh.
-        drawFullMessage("Mereset...", "data dihapus");
+        drawFullMessage(T("Mereset...", "Resetting..."), T("data dihapus", "data erased"));
         Serial.println("[SETTING] reset data: hapus semua NVS lalu restart");
         ble_shutdown();
         esp_err_t err = nvs_flash_erase();
@@ -649,7 +683,7 @@ static void drawInfo() {
   display.setCursor(0, 21);
   String addr = ble_address();
   display.print("BT ");
-  display.print(addr.length() ? addr : String("(mati)"));
+  display.print(addr.length() ? addr : String(T("(mati)", "(off)")));
   display.setCursor(0, 30);
   display.print("Reset: ");
   display.print(power_resetReason());
@@ -657,7 +691,7 @@ static void drawInfo() {
   if (frames_valid()) {
     display.printf("Anim: %u frm %ufps %s", frames_count(), frames_fps(), frames_portrait() ? "P" : "L");
   } else {
-    display.print("Anim: kosong");
+    display.print(T("Anim: kosong", "Anim: empty"));
   }
   marquee_draw(0, 48, 128, ble_lastNotifInfo().c_str());
   display.setCursor(0, 57);
@@ -674,7 +708,7 @@ static uint32_t infoSignature() {
   return sig_mix(h, ESP.getMinFreeHeap() / 1024);
 }
 
-// Setting: teks sementara "OK lagi?" / "Reset!" ikut menentukan tanda
+// Setting: teks sementara T("OK lagi?", "OK again?") / "Reset!" ikut menentukan tanda
 static uint32_t settingsSignature() {
   uint32_t h = sig_mix(header_signature(), millis() < resetConfirmUntil);
   h = sig_mix(h, millis() < restartConfirmUntil);
@@ -690,13 +724,13 @@ static uint32_t settingsSignature() {
 
 static void drawGuide() {
   display.clearDisplay();
-  drawHeader("PANDUAN iPHONE");
+  drawHeader(T("PANDUAN iPHONE", "iPHONE GUIDE"));
   display.setTextColor(SSD1306_WHITE);
   for (int i = 0; i < GUIDE_ROWS && guideTop + i < GUIDE_COUNT; i++) {
     display.setCursor(0, 13 + i * 10);
     // baris nama Bluetooth mengikuti nama yang diatur di halaman OTA
-    if (GUIDE_LINES[guideTop + i] == GUIDE_NAME_LINE) display.print("   " + settings_bleName());
-    else display.print(GUIDE_LINES[guideTop + i]);
+    if (LT(GUIDE_LINES, GUIDE_LINES_EN)[guideTop + i] == GUIDE_NAME_LINE) display.print("   " + settings_bleName());
+    else display.print(LT(GUIDE_LINES, GUIDE_LINES_EN)[guideTop + i]);
   }
   // Penanda scroll di kanan
   if (guideTop > 0) display.fillTriangle(124, 13, 127, 13, 125, 11, SSD1306_WHITE);
@@ -707,12 +741,14 @@ static void drawGuide() {
 static void drawSleepMessage() {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(22, 20);
-  display.print("Tidur sekarang");
-  display.setCursor(4, 36);
-  display.print("Tekan UP/DOWN untuk");
-  display.setCursor(46, 46);
-  display.print("bangun");
+  const char *l1 = T("Tidur sekarang", "Sleeping now"), *l2 = T("Tekan UP/DOWN untuk", "Press L or R"),
+             *l3 = T("bangun", "to wake up");
+  display.setCursor((128 - (int)strlen(l1) * 6) / 2, 20);
+  display.print(l1);
+  display.setCursor((128 - (int)strlen(l2) * 6) / 2, 36);
+  display.print(l2);
+  display.setCursor((128 - (int)strlen(l3) * 6) / 2, 46);
+  display.print(l3);
   oled_flush();
 }
 
@@ -750,10 +786,11 @@ static void loadClockFromSystem() {
 // Editor jam: baris "Sync HP" (isian 0), sumber + sinkron terakhir, HH:MM besar, tanggal
 static void drawClockEditor() {
   display.clearDisplay();
-  drawHeader("SET JAM");
+  drawHeader(T("SET JAM", "SET CLOCK"));
   static const char *const SYNC_TEXT[] = {"OK = minta", "Meminta...", "Tersinkron", "Gagal", "Tdk sambung", "Tanpa jam"};
+  static const char *const SYNC_TEXT_EN[] = {"OK = request", "Requesting", "Synced", "Failed", "No connect", "No clock"};
   char buf[24];
-  snprintf(buf, sizeof(buf), "Sync HP: %s", SYNC_TEXT[syncState]);
+  snprintf(buf, sizeof(buf), T("Sync HP: %s", "Phone sync: %s"), LT(SYNC_TEXT, SYNC_TEXT_EN)[syncState]);
   printValue(0, 13, 1, buf, clockField == 0);
   display.setCursor(0, 22);
   uint32_t ls = clock_lastSync();
@@ -763,7 +800,7 @@ static void drawClockEditor() {
     gmtime_r(&t, &tmv);
     display.printf("%s %02d/%02d %02d:%02d", clock_sourceName(), tmv.tm_mday, tmv.tm_mon + 1, tmv.tm_hour, tmv.tm_min);
   } else {
-    display.printf("%s, blm sync", clock_sourceName());
+    display.printf(T("%s, blm sync", "%s, no sync"), clock_sourceName());
   }
   // HH:MM ukuran 2 di tengah
   printField(34, 32, 2, 0, "%02d");
@@ -779,9 +816,9 @@ static void drawClockEditor() {
   display.setCursor(64, 48); display.print("/");
   printField(70, 48, 1, 4, "%04d");
   display.setCursor(0, 57);
-  display.print(clockFailed ? "Tanggal tdk valid"
+  display.print(clockFailed ? T("Tanggal tdk valid", "Invalid date")
                 : clockField == 0 ? "OK:sync  >:manual"
-                : clockField < 5  ? "<>ubah OK:lanjut" : "<>ubah OK:simpan");
+                : clockField < 5  ? T("<>ubah OK:lanjut", "<>edit OK:next") : T("<>ubah OK:simpan", "<>edit OK:save"));
   oled_flush();
 }
 
@@ -863,12 +900,12 @@ static bool clockEditorUpdate(bool redraw) {
 // Editor Malam: Aktif ON/OFF, Mulai HH:MM, Selesai HH:MM (menit per 5)
 static void drawNightEditor() {
   display.clearDisplay();
-  drawHeader("MALAM");
+  drawHeader(T("MALAM", "NIGHT"));
   char buf[4];
   display.setCursor(0, 14);
-  display.print("Aktif:");
+  display.print(T("Aktif:", "On:"));
   printValue(42, 14, 1, nightVal[0] ? "ON" : "OFF", nightField == 0);
-  const char *labels[2] = {"Mulai", "Selesai"};
+  const char *labels[2] = {T("Mulai", "Start"), T("Selesai", "End")};
   for (int k = 0; k < 2; k++) {
     int y = 25 + k * 16;
     display.setCursor(0, y + 4);
@@ -883,7 +920,7 @@ static void drawNightEditor() {
     printValue(92, y, 2, buf, nightField == 2 + k * 2);
   }
   display.setCursor(0, 57);
-  display.print(nightFailed ? "Mulai = selesai!" : "Tidur total: BT mati");
+  display.print(nightFailed ? T("Mulai = selesai!", "Start = end!") : T("Tidur total: BT mati", "Deep sleep: BT off"));
   oled_flush();
 }
 
@@ -932,8 +969,8 @@ static void drawOledTest() {
     display.drawRect(0, 0, 128, 64, SSD1306_WHITE);
     display.drawLine(0, 0, 127, 63, SSD1306_WHITE);
     display.drawLine(127, 0, 0, 63, SSD1306_WHITE);
-    display.setCursor(2, 2); display.print("KI");
-    display.setCursor(114, 55); display.print("KA");
+    display.setCursor(2, 2); display.print(T("KI", "L"));
+    display.setCursor(114, 55); display.print(T("KA", "R"));
   } else if (oledPattern == 1) {  // papan catur 8x8
     for (int y = 0; y < 64; y += 8)
       for (int x = 0; x < 128; x += 8)
@@ -1003,7 +1040,7 @@ static void drawFullMessage(const char *l1, const char *l2) {
 static void settingCard(int item, int dx) {
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);
-  const char *label = SETTING_LABELS[item];
+  const char *label = LT(SETTING_LABELS, SETTING_LABELS_EN)[item];
   display.setCursor(dx + (128 - (int)strlen(label) * 6) / 2, 16);
   display.print(label);
   String val = settingValue(item);
@@ -1087,7 +1124,7 @@ AppState settings_screen_update(bool redraw) {
                   (btRestartAt && millis() - btRestartAt < BT_RESTART_SHOW_MS + 200);
   if (!redraw_needed(watch, redraw, settingsSignature, tempText ? 100 : 1000)) return ST_SETTINGS;
 
-  card_draw(settingCar, "SETTING", SI_COUNT, settingCard, "OK ubah");
+  card_draw(settingCar, T("SETTING", "SETTINGS"), SI_COUNT, settingCard, T("OK ubah", "OK edit"));
   oled_flush();
   return ST_SETTINGS;
 }
@@ -1105,7 +1142,7 @@ AppState nav_screen_update(bool redraw) {
   if (!redraw_needed(watch, redraw, header_signature)) return ST_NAV;
 
   if (ble_isIphone()) {
-    draw_androidOnly("NAV", "iPhone tidak mengirim", "data navigasi.");
+    draw_androidOnly("NAV", T("iPhone tidak mengirim", "iPhone does not send"), T("data navigasi.", "navigation data."));
     oled_flush();
     return ST_NAV;
   }
@@ -1115,18 +1152,18 @@ AppState nav_screen_update(bool redraw) {
 
   if (!ble_connected()) {
     display.setCursor(0, 16);
-    display.print("Menunggu koneksi...");
+    display.print(T("Menunggu koneksi...", "Waiting to connect.."));
     display.setCursor(0, 30);
-    display.print("Buka app Chronos");
+    display.print(T("Buka app Chronos", "Open Chronos app"));
     display.setCursor(0, 42);
-    display.print("Nama: ");
+    display.print(T("Nama: ", "Name: "));
     display.print(settings_bleName());
   } else {
     Navigation &nav = ble_nav();
     if (!nav.active) {
       display.setCursor(0, 16);
-      display.print("Terhubung.");
-      drawWrapped(0, 30, 21, 3, "Mulai rute di Google Maps");
+      display.print(T("Terhubung.", "Connected."));
+      drawWrapped(0, 30, 21, 3, T("Mulai rute di Google Maps", "Start a route in Google Maps"));
     } else {
       int textX = 0;
       int cols = 21;
@@ -1156,15 +1193,16 @@ void draw_androidOnly(const char *title, const char *line1, const char *line2) {
   display.clearDisplay();
   drawHeader(title);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor((128 - 18 * 6) / 2, 16);
-  display.print("Hanya untuk Android");
+  const char *only = T("Hanya untuk Android", "Android only");
+  display.setCursor((128 - (int)strlen(only) * 6) / 2, 16);
+  display.print(only);
   display.drawFastHLine(10, 26, 108, SSD1306_WHITE);
   display.setCursor(0, 32);
   display.print(line1);
   display.setCursor(0, 42);
   display.print(line2);
   display.setCursor(0, 56);
-  display.print("BACK: kembali");
+  display.print(T("BACK: kembali", "BACK: back"));
 }
 
 void call_draw(const char *caller, bool blink, const char *hint) {
@@ -1174,8 +1212,9 @@ void call_draw(const char *caller, bool blink, const char *hint) {
   display.fillRect(0, 0, 128, 13, SSD1306_WHITE);
   display.setTextSize(1);
   display.setTextColor(SSD1306_BLACK);
-  display.setCursor(37, 3);
-  display.print("PANGGILAN");
+  const char *callTitle = T("PANGGILAN", "CALL");
+  display.setCursor((128 - (int)strlen(callTitle) * 6) / 2, 3);
+  display.print(callTitle);
   display.setTextColor(SSD1306_WHITE);
   // Ikon telepon berkedip
   if (blink) {
@@ -1184,7 +1223,7 @@ void call_draw(const char *caller, bool blink, const char *hint) {
     display.drawFastHLine(12, 35, 4, SSD1306_WHITE);
   }
   String name = asciiOnly(caller);
-  if (!name.length()) name = "Tidak dikenal";
+  if (!name.length()) name = T("Tidak dikenal", "Unknown");
   marquee_draw(22, 25, 104, name.c_str());
   display.setCursor((128 - (int)strlen(hint) * 6) / 2, 52);
   display.print(hint);

@@ -1,6 +1,7 @@
 #include "settings.h"
 #include <Preferences.h>
 #include "version.h"
+#include "lang.h"
 
 static const uint16_t SCREEN_SEC[SCREEN_OPT_COUNT] = {15, 30, 60, 0};
 // Indeks 3 dulu bernama "OFF". Deep sleep mematikan Bluetooth (WA tidak bisa membangunkan jam) dan
@@ -30,9 +31,11 @@ static const char *const HITUNG_LV5_NAMES[HITUNG_LV5_OPT_COUNT] = {"2,0s", "1,5s
 static const uint16_t LEGACY_LV5_MS[4] = {1500, 1200, 1000, 800};
 static uint8_t hitungLv5Idx = 2;  // 1,2s
 static const char *const HITUNG_DIST_NAMES[HITUNG_DIST_OPT_COUNT] = {"Tanpa", "Sedikit", "Sedang", "Banyak"};
+static const char *const HITUNG_DIST_NAMES_EN[HITUNG_DIST_OPT_COUNT] = {"None", "Few", "Some", "Many"};
 static uint8_t hitungDistIdx = 2;  // Sedang
 static bool bootAnim = true;
 static uint8_t pmMode = PM_MODE_LIGHT_SLEEP;
+uint8_t g_lang = LANG_ID;
 static String devName, bleName, otaSsid;  // kosong = nama bawaan (DEVICE_NAME)
 
 void settings_begin() {
@@ -77,6 +80,7 @@ void settings_begin() {
   bootAnim = prefs.getBool("anim", true);
   devName = prefs.getString("devName", "");
   pmMode = prefs.getUChar("pmMode", PM_MODE_LIGHT_SLEEP) % PM_MODE_COUNT;
+  g_lang = prefs.getUChar("lang", LANG_ID) % LANG_COUNT;
   bleName = prefs.getString("bleName", "");
   otaSsid = prefs.getString("ssid", "");
 }
@@ -163,7 +167,7 @@ void settings_setHitungDistIdx(uint8_t idx) {
   hitungDistIdx = idx % HITUNG_DIST_OPT_COUNT;
   prefs.putUChar("hitDist", hitungDistIdx);
 }
-const char *settings_hitungDistNameAt(uint8_t idx) { return HITUNG_DIST_NAMES[idx % HITUNG_DIST_OPT_COUNT]; }
+const char *settings_hitungDistNameAt(uint8_t idx) { return LT(HITUNG_DIST_NAMES, HITUNG_DIST_NAMES_EN)[idx % HITUNG_DIST_OPT_COUNT]; }
 
 uint8_t settings_i2cIdx() { return i2cIdx; }
 void settings_setI2cIdx(uint8_t idx) {
@@ -235,4 +239,10 @@ const char *settings_pmModeName() { return PM_MODE_NAMES[pmMode]; }
 void settings_setPmMode(uint8_t m) {
   pmMode = m % PM_MODE_COUNT;
   prefs.putUChar("pmMode", pmMode);
+}
+
+uint8_t settings_lang() { return g_lang; }
+void settings_setLang(uint8_t l) {
+  g_lang = l % LANG_COUNT;
+  prefs.putUChar("lang", g_lang);
 }

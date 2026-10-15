@@ -1,4 +1,5 @@
 #include "ble_link.h"
+#include "lang.h"
 #include "settings.h"
 #include "ios_link.h"
 #include "remote_hid.h"
@@ -327,7 +328,7 @@ void ble_update() {
 }
 
 String ble_lastNotifInfo() {
-  if (lastIcon < 0) return "Notif: belum ada";
+  if (lastIcon < 0) return T("Notif: belum ada", "Notif: none yet");
   char buf[32];
   snprintf(buf, sizeof(buf), "Notif: %s 0x%02X", lastApp.c_str(), lastIcon);
   return String(buf);

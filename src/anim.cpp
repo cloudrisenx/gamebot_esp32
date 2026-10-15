@@ -1,9 +1,11 @@
 #include "anim.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include "buttons.h"
 #include "frames_store.h"
 #include "screen.h"
+#include "ota.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -16,6 +18,7 @@ static bool paused = false;
 static uint8_t speedIdx = 1;
 static uint32_t nextAtUs = 0;       // jadwal frame berikutnya (micros): tetap, tidak menumpuk telat
 static uint32_t overlayUntil = 0;
+static uint16_t lastCount = 0;     // jumlah frame terakhir: berubah = animasi baru diupload lewat OTA
 
 // Statistik untuk log "[ANIM]" tiap STATS_MS
 static const uint32_t STATS_MS = 5000;
@@ -27,6 +30,8 @@ void anim_enter() {
   speedIdx = 1;
   nextAtUs = micros();
   overlayUntil = 0;
+  lastCount = frames_count();
+  ota_holdMenuReset();
   statsStart = millis();
   statsFrames = statsDecodeMaxUs = statsFlushMaxUs = 0;
 }
@@ -67,9 +72,22 @@ static void logStats() {
 }
 
 AppState anim_update(bool redraw) {
+  // Tahan OK = menu WiFi (OTA latar: kirim animasi dari HP); ketuk OK = jeda
+  OtaMenu m = ota_holdMenu(T("WIFI ANIMASI", "WIFI ANIMATION"), T("Kirim animasi dari HP:", "Send animation from"),
+                           T("tab Animasi di web OTA", "phone: Animation tab"));
+  if (m == OM_OPEN) return ST_ANIM;
+  if (m == OM_CLOSED) { nextAtUs = micros(); redraw = true; }
   if (btn_pressed(BTN_BACK)) {
+    ota_bgStop();  // keluar dari Animasi = WiFi OTA mati
     screen_landscape();
     return ST_MENU;
+  }
+  // Animasi baru selesai diupload: putar dari awal
+  if (frames_count() != lastCount) {
+    lastCount = frames_count();
+    frame = 0;
+    nextAtUs = micros();
+    redraw = true;
   }
 
   if (!frames_valid()) {
@@ -79,20 +97,19 @@ AppState anim_update(bool redraw) {
       display.clearDisplay();
       display.setTextSize(1);
       display.setTextColor(SSD1306_WHITE);
-      display.setCursor(22, 16);
-      display.print("Belum ada animasi");
-      display.setCursor(16, 28);
-      display.print("upload via OTA di");
-      display.setCursor(13, 38);
-      display.print("Setting > Update OTA");
-      display.setCursor(34, 54);
-      display.print("BACK: menu");
+      const char *lines[4] = {T("Belum ada animasi", "No animation yet"), T("tahan OK = WiFi OTA,", "hold OK = WiFi OTA,"),
+                              T("kirim di tab Animasi", "send in Animation tab"), "BACK: menu"};
+      static const int Y[4] = {16, 28, 38, 54};
+      for (int i = 0; i < 4; i++) {
+        display.setCursor((128 - (int)strlen(lines[i]) * 6) / 2, Y[i]);
+        display.print(lines[i]);
+      }
       oled_flush();
     }
     return ST_ANIM;
   }
 
-  if (btn_pressed(BTN_OK)) { paused = !paused; nextAtUs = micros(); redraw = true; }
+  if (m == OM_TAP) { paused = !paused; nextAtUs = micros(); redraw = true; }
   if (btn_pressed(BTN_UP) && speedIdx < 2) { speedIdx++; overlayUntil = millis() + OVERLAY_MS; redraw = true; }
   if (btn_pressed(BTN_DOWN) && speedIdx > 0) { speedIdx--; overlayUntil = millis() + OVERLAY_MS; redraw = true; }
 

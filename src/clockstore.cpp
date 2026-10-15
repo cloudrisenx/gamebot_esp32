@@ -1,4 +1,5 @@
 #include "clockstore.h"
+#include "lang.h"
 #include <Preferences.h>
 #include "ble_link.h"
 
@@ -86,10 +87,10 @@ ClockSource clock_source() { return source; }
 
 const char *clock_sourceName() {
   switch (source) {
-    case CLK_SYNC:     return "Sinkron";
+    case CLK_SYNC:     return T("Sinkron", "Synced");
     case CLK_MANUAL:   return "Manual";
-    case CLK_ESTIMATE: return "Perkiraan";
-    default:           return "Belum";
+    case CLK_ESTIMATE: return T("Perkiraan", "Estimate");
+    default:           return T("Belum", "Not set");
   }
 }
 

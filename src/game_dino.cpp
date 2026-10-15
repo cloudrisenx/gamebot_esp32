@@ -1,4 +1,5 @@
 #include "game_dino.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include "buttons.h"
@@ -258,7 +259,8 @@ bool dino_update(bool redraw) {
     if (!jump) {
       if (redraw) {
         static const char *const CONTROLS[] = {"OK/kiri: lompat (2x)", "Tahan kanan: merunduk"};
-        games_drawReady("DINO RUN", CONTROLS, 2, settings_hiscore(GAME_DINO));
+        static const char *const CONTROLS_EN[] = {"OK/left: jump (2x)", "Hold right: duck"};
+        games_drawReady("DINO RUN", LT(CONTROLS, CONTROLS_EN), 2, settings_hiscore(GAME_DINO));
       }
       return true;
     }

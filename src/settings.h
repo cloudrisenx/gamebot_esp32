@@ -72,6 +72,9 @@ String settings_otaPassword();  // 8 karakter acak dibuat sekali, atau yang diat
 #define NAME_MAX_LEN 20
 
 // Mode hemat saat layar mati (env lightsleep): uji/cadangan bila BLE bermasalah saat light sleep
+uint8_t settings_lang();
+void settings_setLang(uint8_t l);  // Lang di lang.h
+
 enum PmMode : uint8_t { PM_MODE_NORMAL, PM_MODE_DFS, PM_MODE_LIGHT_SLEEP, PM_MODE_COUNT };
 uint8_t settings_pmMode();
 void settings_setPmMode(uint8_t m);

@@ -3,11 +3,13 @@
 
 Sumber yang didukung (dideteksi otomatis dari INPUT):
   - folder berisi frame_XXXXX.h lama (array 0x.. format drawBitmap)
+  - satu file .h berisi banyak frame (video_frames[][1024], TOTAL_FRAMES, FRAME_DELAY ms)
   - file .gif (animasi)
   - folder berisi gambar .png/.jpg/.bmp (diurutkan berdasarkan nama)
 
 Contoh:
   python tools/make_frames.py tools/legacy_frames/frames -o frames.bin --fps 30
+  python tools/make_frames.py tools/legacy_frames/VideoFrame_R4.h -o frames.bin
   python tools/make_frames.py kucing.gif -o frames.bin --dither
   python tools/make_frames.py folder_png/ -o frames.bin --fps 12 --threshold 100
   python tools/make_frames.py video_tegak.gif -o frames.bin --portrait
@@ -25,7 +27,7 @@ from pathlib import Path
 
 W, H = 128, 64  # diganti 64x128 oleh --portrait
 FRAME_BYTES = W * H // 8  # 1024 byte untuk kedua orientasi
-PARTITION_SIZE = 0xE0000
+PARTITION_SIZE = 0x60000  # partisi frames 384 KB (partitions.csv)
 MAX_FRAMES = (PARTITION_SIZE - 16) // FRAME_BYTES
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".bmp"}
 
@@ -45,6 +47,21 @@ def load_legacy(folder):
             sys.exit(f"{f.name}: {len(data)} byte, harus {FRAME_BYTES}")
         frames.append(data)
     return frames
+
+
+def load_legacy_file(path):
+    """Satu .h berisi banyak frame 1024 byte; fps dari FRAME_DELAY (ms per frame) bila ada."""
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    data = bytes(int(b, 16) for b in re.findall(r"0x([0-9A-Fa-f]{2})", text[text.index("{"):]))
+    if len(data) % FRAME_BYTES:
+        sys.exit(f"{path.name}: {len(data)} byte, bukan kelipatan {FRAME_BYTES}")
+    frames = [data[i:i + FRAME_BYTES] for i in range(0, len(data), FRAME_BYTES)]
+    total = re.search(r"TOTAL_FRAMES\s*=\s*(\d+)", text)
+    if total and int(total.group(1)) != len(frames):
+        sys.exit(f"{path.name}: TOTAL_FRAMES {total.group(1)}, terbaca {len(frames)} frame")
+    delay = re.search(r"FRAME_DELAY\s*=\s*(\d+)", text)
+    fps = max(1, min(255, round(1000 / int(delay.group(1))))) if delay else 30
+    return frames, fps
 
 
 def to_bitmap(img, args):
@@ -104,6 +121,10 @@ def main():
     default_fps = 30
     if src.is_dir() and any(src.glob("*.h")):
         frames = load_legacy(src)
+    elif src.is_file() and src.suffix.lower() == ".h":
+        frames, default_fps = load_legacy_file(src)
+        if args.invert:
+            frames = [bytes(b ^ 0xFF for b in f) for f in frames]
     elif src.is_file() and src.suffix.lower() == ".gif":
         frames, default_fps = load_gif(src, args)
     elif src.is_dir():

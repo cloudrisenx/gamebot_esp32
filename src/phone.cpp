@@ -6,6 +6,7 @@
 #include "ble_link.h"
 #include "remote_hid.h"
 #include "settings.h"
+#include "lang.h"
 #include <Preferences.h>
 #include "screen.h"
 
@@ -16,6 +17,7 @@ enum PhoneScreen { PS_LIST, PS_NOTIF_LIST, PS_NOTIF_DETAIL, PS_MUSIC, PS_CAMERA,
 // "Mode HP" (Android/iPhone) diganti langsung di kartunya (OK), tanpa layar sendiri
 enum PhoneItem { PI_NOTIF, PI_MUSIC, PI_CAMERA, PI_WEATHER, PI_MODE, ITEM_COUNT };
 static const char *ITEMS[] = {"Notifikasi", "Musik", "Kamera", "Cuaca", "Mode HP"};
+static const char *ITEMS_EN[] = {"Notifications", "Music", "Camera", "Weather", "Phone mode"};
 static const PhoneScreen ITEM_SCREENS[] = {PS_NOTIF_LIST, PS_MUSIC, PS_CAMERA, PS_WEATHER, PS_LIST};
 static const uint8_t PROGMEM ICON_PHONE_NOTIF[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00,
@@ -74,10 +76,9 @@ static const uint32_t DELETED_SHOW_MS = 800;
 static const int DETAIL_LINES = 5;
 static const int DETAIL_COLS = 20;     // detail: kolom ke-21 untuk penanda scroll v/^
 static const int CARD_COLS = 21;
-// Musik: ketuk kiri/kanan = volume (salah tekan tidak berakibat besar), TAHAN = ganti lagu (disengaja)
-static const uint32_t TRACK_HOLD_MS = 600;
-static const uint32_t TRACK_HINT_MS = 150;   // tahan lebih dari ini: kotak "lagu" + bar mulai tampil
-static const uint32_t TRACK_SHOW_MS = 800;   // "Lagu berikutnya/sebelumnya" tampil sesudah berganti
+// Musik: ketuk kiri/kanan = lagu sebelumnya/berikutnya, TAHAN = volume (berulang)
+static const uint32_t HOLD_MS = 600;
+static const uint32_t REPEAT_MS = 300;
 
 static PhoneScreen screen = PS_LIST;
 static Carousel itemCar = {};
@@ -104,11 +105,12 @@ static bool camShotOk = false;
 static const Btn MUSIC_LEFT = MENU_SWAP_LR ? BTN_DOWN : BTN_UP, MUSIC_RIGHT = MENU_SWAP_LR ? BTN_UP : BTN_DOWN;
 static int holdBtn = -1;
 static uint32_t holdStart = 0;
-static bool repeated = false;       // tahan ini sudah mengganti lagu (lepas tidak mengubah volume)
-static int trackDir = 0;            // -1/+1: lagu baru saja diganti (kotak tampil sampai trackUntil)
-static uint32_t trackUntil = 0;
+static uint32_t lastRepeat = 0;
+static bool repeated = false;       // tahan ini sudah mengubah volume (lepas tidak mengganti lagu)
 
 // ---------- Layar Musik ----------
+static const uint8_t PROGMEM ICON_PREV[] = {0x00, 0x89, 0x9B, 0xBF, 0xFF, 0xBF, 0x9B, 0x89};
+static const uint8_t PROGMEM ICON_NEXT[] = {0x00, 0x91, 0xD9, 0xFD, 0xFF, 0xFD, 0xD9, 0x91};
 static const uint8_t PROGMEM ICON_PLAY[] = {0x40, 0x70, 0x7C, 0x7F, 0x7C, 0x70, 0x40, 0x00};
 static const uint8_t PROGMEM ICON_PAUSE[] = {0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x00};
 static const uint8_t PROGMEM ICON_NOTE[] = {0x0C, 0x0E, 0x0B, 0x09, 0x08, 0x78, 0xF8, 0x70};
@@ -120,7 +122,9 @@ static const int TITLE_LEFT = 2, TITLE_W = 124;       // area judul 2..125
 static const int EQ_BARS = 7, EQ_X = 100, EQ_BASE = 50, EQ_MAX = 10;
 static const uint32_t EQ_STEP_MS = 120;
 static const int CTRL_Y = 55;
-static const int CTRL_X[3] = {17, 60, 103};            // VOL- / play-pause / VOL+ (tengah kolom)
+// Legenda 4 kolom (32 px) = urutan tombol fisik: kiri, kanan, OK, BACK
+static const int CTRL_X[3] = {12, 44, 76};             // ikon prev / next / play-pause (x kiri ikon 8 px)
+static const int CTRL_BACK_X = 100;                    // "BACK" (24 px) di kolom ke-4
 static const uint32_t FEEDBACK_MS = 300, VOL_SHOW_MS = 800;
 static const int VOL_SEGMENTS = 8;
 static const uint32_t ANIM_FRAME_MS = 50;
@@ -131,20 +135,21 @@ static uint32_t lastTickMs = 0;
 static bool lastPlaying = false;
 static uint8_t eqHeight[EQ_BARS];
 static uint32_t eqLast = 0, eqSeed = 1;
-static int feedbackIcon = -1;       // 0 prev, 1 play/pause, 2 next
+static int feedbackIcon = -1;       // 0 prev, 1 next, 2 play/pause
 static uint32_t feedbackUntil = 0;
 static int volLevel = VOL_SEGMENTS / 2;
 static int volDir = 0;              // +1 / -1 arah terakhir
 static uint32_t volUntil = 0;
 
 static const char *DAY_NAMES[] = {"Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"};
+static const char *DAY_NAMES_EN[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 static const char *WEATHER_NAMES[] = {"Cerah berawan", "Cerah", "Salju", "Hujan", "Berawan", "Ekstrem", "Berangin", "Kabut"};
+static const char *WEATHER_NAMES_EN[] = {"Partly cloudy", "Sunny", "Snow", "Rain", "Cloudy", "Extreme", "Windy", "Fog"};
 
 static void startScreen(PhoneScreen s) {
   screen = s;
   holdBtn = -1;
-  feedbackUntil = volUntil = trackUntil = 0;
-  holdBtn = -1;
+  feedbackUntil = volUntil = 0;
   okHolding = false;
   camTimerEnd = 0;
   if (s == PS_CAMERA) camLoadTimer();
@@ -180,7 +185,7 @@ static void centerLine(int y, const String &s) {
 
 static bool showNotConnected() {
   if (ble_connected()) return false;
-  centerLine(30, "HP belum terhubung");
+  centerLine(30, T("HP belum terhubung", "Phone not connected"));
   return true;
 }
 
@@ -200,10 +205,10 @@ static void drawList() {
   int item = vis[itemCar.sel];
   // Notifikasi: jumlah riwayat ikut di nama, mis. "Notifikasi (3)"; Mode HP: pilihan sekarang
   char name[24];
-  if (item == PI_NOTIF && ble_historyCount()) snprintf(name, sizeof(name), "%s (%d)", ITEMS[item], ble_historyCount());
-  else if (item == PI_MODE) snprintf(name, sizeof(name), "Mode: %s", settings_phoneMode() == PHONE_IPHONE ? "iPhone" : "Android");
-  else snprintf(name, sizeof(name), "%s", ITEMS[item]);
-  carousel_draw(itemCar, "HP", icons, n, name);
+  if (item == PI_NOTIF && ble_historyCount()) snprintf(name, sizeof(name), "%s (%d)", LT(ITEMS, ITEMS_EN)[item], ble_historyCount());
+  else if (item == PI_MODE) snprintf(name, sizeof(name), "%s: %s", T("Mode", "Mode"), settings_phoneMode() == PHONE_IPHONE ? "iPhone" : "Android");
+  else snprintf(name, sizeof(name), "%s", LT(ITEMS, ITEMS_EN)[item]);
+  carousel_draw(itemCar, T("HP", "PHONE"), icons, n, name);
 }
 
 // Isi satu kartu notifikasi: pengirim (berjalan bila panjang) + cuplikan pesan 3 baris
@@ -217,10 +222,10 @@ static void notifCard(int i, int dx) {
 static void drawNotifList() {
   int n = ble_historyCount();
   // Hint pendek: "OK buka  tahan=hapus" + "10/10" tidak muat 128 px; ketuk OK = buka tetap berlaku
-  card_draw(notifCar, n ? ble_historyAt(notifCar.sel).time : "NOTIF", n, notifCard, "tahan OK=hapus");
+  card_draw(notifCar, n ? ble_historyAt(notifCar.sel).time : "NOTIF", n, notifCard, T("tahan OK=hapus", "hold OK=delete"));
   if (!n) {
     display.setTextColor(SSD1306_WHITE);
-    centerLine(30, "Belum ada notifikasi");
+    centerLine(30, T("Belum ada notifikasi", "No notifications yet"));
   }
   // Tahan OK: bar terisi di dasar kartu sampai DELETE_HOLD_MS
   if (n && okHolding) {
@@ -231,7 +236,7 @@ static void drawNotifList() {
     const int bx = 30, by = 20, bw = 68, bh = 18;
     display.fillRect(bx, by, bw, bh, SSD1306_BLACK);
     display.drawRect(bx, by, bw, bh, SSD1306_WHITE);
-    centerLine(by + 5, "Dihapus");
+    centerLine(by + 5, T("Dihapus", "Deleted"));
   }
 }
 
@@ -251,7 +256,7 @@ static bool musicPlaying() { return ble_connected() && ble_music().state == 1; }
 static bool musicAnimating() {
   if (!power_screenOn()) return false;
   uint32_t now = millis();
-  if (now < feedbackUntil || now < volUntil || now < trackUntil || holdBtn >= 0) return true;
+  if (now < feedbackUntil || now < volUntil) return true;
   return musicPlaying();  // equalizer
 }
 
@@ -270,44 +275,16 @@ static void drawEqualizer(bool playing) {
 }
 
 static void drawControls(bool connected, bool playing) {
-  // Kiri/kanan = label volume (ketuk); tahan = ganti lagu (kotak di tengah layar). Tengah = putar/jeda.
-  static const char *const VOL_LABEL[3] = {"VOL-", nullptr, "VOL+"};
+  const uint8_t *icons[3] = {ICON_PREV, ICON_NEXT, playing ? ICON_PAUSE : ICON_PLAY};
   for (int i = 0; i < 3; i++) {
     int x = CTRL_X[i];
-    bool active = connected && i == feedbackIcon && millis() < feedbackUntil;
-    if (i == 1) {
-      const uint8_t *icon = playing ? ICON_PAUSE : ICON_PLAY;
-      if (!connected) { drawIconGray(x, CTRL_Y, icon); continue; }
-      if (active) display.fillRoundRect(x - 3, CTRL_Y - 2, 14, 11, 2, SSD1306_WHITE);
-      display.drawBitmap(x, CTRL_Y, icon, 8, 8, active ? SSD1306_BLACK : SSD1306_WHITE);
-    } else {
-      int tx = x + 4 - 12;  // label 4 huruf (24 px) dipusatkan di kolom
-      if (active) display.fillRoundRect(tx - 2, CTRL_Y - 2, 28, 11, 2, SSD1306_WHITE);
-      display.setTextColor(active ? SSD1306_BLACK : SSD1306_WHITE);
-      display.setCursor(tx, CTRL_Y);
-      display.print(VOL_LABEL[i]);
-      display.setTextColor(SSD1306_WHITE);
-    }
+    if (!connected) { drawIconGray(x, CTRL_Y, icons[i]); continue; }
+    bool active = i == feedbackIcon && millis() < feedbackUntil;
+    if (active) display.fillRoundRect(x - 3, CTRL_Y - 2, 14, 11, 2, SSD1306_WHITE);
+    display.drawBitmap(x, CTRL_Y, icons[i], 8, 8, active ? SSD1306_BLACK : SSD1306_WHITE);
   }
-}
-
-// Kotak "lagu": saat kiri/kanan ditahan (bar terisi sampai TRACK_HOLD_MS) dan sesaat setelah lagu berganti
-static void drawTrackOverlay() {
-  uint32_t now = millis();
-  bool holding = holdBtn >= 0 && !repeated && now - holdStart >= TRACK_HINT_MS;
-  if (!holding && now >= trackUntil) return;
-  int dir = holding ? (holdBtn == MUSIC_RIGHT ? 1 : -1) : trackDir;
-  const int bx = 14, by = 14, bw = 100, bh = 28;
-  display.fillRect(bx, by, bw, bh, SSD1306_BLACK);
-  display.drawRect(bx, by, bw, bh, SSD1306_WHITE);
-  if (holding) {
-    centerLine(by + 4, dir > 0 ? "Tahan: lagu >>" : "Tahan: << lagu");
-    uint32_t held = min((uint32_t)(now - holdStart), TRACK_HOLD_MS);
-    display.drawRect(bx + 8, by + 16, bw - 16, 6, SSD1306_WHITE);
-    display.fillRect(bx + 8, by + 16, held * (bw - 16) / TRACK_HOLD_MS, 6, SSD1306_WHITE);
-  } else {
-    centerLine(by + 10, dir > 0 ? "Lagu berikutnya" : "Lagu sebelumnya");
-  }
+  display.setCursor(CTRL_BACK_X, CTRL_Y);
+  display.print("BACK");
 }
 
 static void drawVolumeOverlay() {
@@ -334,7 +311,7 @@ static void drawMusic() {
   // Baris atas: ikon not + nama aplikasi, jam di kanan
   display.drawBitmap(0, 0, ICON_NOTE, 8, 8, SSD1306_WHITE);
   String app = connected ? asciiOnly(m.appName.c_str()) : String();
-  marquee_draw(10, 0, 84, app.length() ? app.c_str() : "Musik");  // sampai sebelum jam (x=98)
+  marquee_draw(10, 0, 84, app.length() ? app.c_str() : T("Musik", "Music"));  // sampai sebelum jam (x=98)
   char hhmm[6];
   printRight(128, 0, ble_timeStr(hhmm, sizeof(hhmm)) ? hhmm : "--:--");
   display.drawFastHLine(0, 9, 128, SSD1306_WHITE);
@@ -343,10 +320,10 @@ static void drawMusic() {
   bool playing = connected && m.state == 1;
   int progressW = -1;  // >= 0 bila posisi lagu asli tersedia (iPhone)
   if (!connected) {
-    centerLine(17, "HP belum terhubung");
+    centerLine(17, T("HP belum terhubung", "Phone not connected"));
   } else if (!title.length()) {
-    centerLine(17, "Belum ada lagu");
-    centerLine(32, "Putar musik di HP");
+    centerLine(17, T("Belum ada lagu", "No song playing"));
+    centerLine(32, T("Putar musik di HP", "Play music on phone"));
   } else {
     marquee_draw(TITLE_LEFT, TITLE_BASELINE, TITLE_W, title.c_str(), SSD1306_WHITE, &FreeSansBold9pt7b);
     marquee_draw(0, 32, 128, asciiOnly(m.artist.c_str()).c_str());
@@ -379,38 +356,37 @@ static void drawMusic() {
   }
   drawControls(connected, playing);
   if (connected && millis() < volUntil) drawVolumeOverlay();
-  if (connected) drawTrackOverlay();
 }
 
 static void drawWeather() {
-  if (ble_isIphone()) { draw_androidOnly("CUACA", "iPhone tidak mengirim", "data cuaca."); return; }
-  beginScreen("CUACA");
+  if (ble_isIphone()) { draw_androidOnly(T("CUACA", "WEATHER"), T("iPhone tidak mengirim", "iPhone does not send"), T("data cuaca.", "weather data.")); return; }
+  beginScreen(T("CUACA", "WEATHER"));
   int n = ble_weatherCount();
   if (!n && showNotConnected()) return;  // cache cuaca tetap tampil walau belum tersambung
   if (!n) {
-    centerLine(24, "Belum ada data cuaca");
-    centerLine(36, "Aktifkan di Chronos");
+    centerLine(24, T("Belum ada data cuaca", "No weather data yet"));
+    centerLine(36, T("Aktifkan di Chronos", "Enable it in Chronos"));
     return;
   }
   marquee_draw(0, 13, 128, asciiOnly(ble_weatherCity().c_str()).c_str());
   Weather &t = ble_weatherAt(0);
   display.setCursor(0, 23);
-  display.printf("%dC %s", t.temp, WEATHER_NAMES[constrain(t.icon, 0, 7)]);
+  display.printf("%dC %s", t.temp, LT(WEATHER_NAMES, WEATHER_NAMES_EN)[constrain(t.icon, 0, 7)]);
   display.setCursor(0, 33);
-  if (t.high != 0 || t.low != 0) display.printf("Min %dC Maks %dC", t.low, t.high);
+  if (t.high != 0 || t.low != 0) display.printf(T("Min %dC Maks %dC", "Low %dC High %dC"), t.low, t.high);
   // 3 hari berikutnya: "Sen 30C Sel 29C ..."
   String next;
   for (int i = 1; i <= 3 && i < n; i++) {
     Weather &w = ble_weatherAt(i);
-    next += String(DAY_NAMES[w.day % 7]) + " " + w.temp + "C ";
+    next += String(LT(DAY_NAMES, DAY_NAMES_EN)[w.day % 7]) + " " + w.temp + "C ";
   }
   marquee_draw(0, 44, 128, next.c_str());
   display.setCursor(0, 56);
-  display.print("Update ");
+  display.print(T("Update ", "Updated "));
   display.print(ble_weatherTime());
   if (ble_weatherIsCache()) {
     int age = ble_weatherCacheAgeH();
-    display.print(age < 0 ? " lama" : (" " + String(age) + "j lalu").c_str());
+    display.print(age < 0 ? T(" lama", " old") : (" " + String(age) + T("j lalu", "h ago")).c_str());
   }
 }
 
@@ -443,9 +419,9 @@ static bool camAnimating() {
 // Status pairing HID di layar Kamera (teks di kanan ikon, x=36). true bila belum siap dipakai.
 static bool drawHidStatus() {
   const char *l[4] = {nullptr, nullptr, nullptr, nullptr};
-  if (remote_bondError()) { l[0] = "Gagal siapkan"; l[1] = "pairing."; l[2] = "Lihat log"; l[3] = "Serial"; }
-  else if (remote_rejectedFull()) { l[0] = "Memori pairing"; l[1] = "penuh (3 HP)"; l[2] = "Lupakan HP lama"; l[3] = "lalu coba lagi"; }
-  else if (!remote_connected()) { l[0] = "Pair di"; l[1] = "Bluetooth HP:"; static String bt; bt = settings_bleName(); l[2] = bt.c_str(); l[3] = "Remote"; }
+  if (remote_bondError()) { l[0] = T("Gagal siapkan", "Pairing setup"); l[1] = T("pairing.", "failed."); l[2] = T("Lihat log", "See Serial"); l[3] = T("Serial", "log"); }
+  else if (remote_rejectedFull()) { l[0] = T("Memori pairing", "Pairing memory"); l[1] = T("penuh (3 HP)", "full (3 phones)"); l[2] = T("Lupakan HP lama", "Forget old one"); l[3] = T("lalu coba lagi", "then try again"); }
+  else if (!remote_connected()) { l[0] = T("Pair di", "Pair in phone"); l[1] = T("Bluetooth HP:", "Bluetooth:"); static String bt; bt = settings_bleName(); l[2] = bt.c_str(); l[3] = "Remote"; }
   else return false;
   static const int Y[4] = {14, 23, 34, 43};
   for (int i = 0; i < 4; i++) {
@@ -462,14 +438,14 @@ static void drawCamera() {
     display.fillRect(0, 0, 128, 64, SSD1306_WHITE);
     return;
   }
-  beginScreen("KAMERA");
+  beginScreen(T("KAMERA", "CAMERA"));
   if (camShotAt && now - camShotAt < CAM_SHOT_MS) {
     display.setTextSize(2);
-    const char *msg = camShotOk ? "Jepret!" : "Gagal";
+    const char *msg = camShotOk ? T("Jepret!", "Snap!") : T("Gagal", "Failed");
     display.setCursor((128 - (int)strlen(msg) * 12) / 2, 26);
     display.print(msg);
     display.setTextSize(1);
-    if (!camShotOk) centerLine(48, "HP belum terhubung");
+    if (!camShotOk) centerLine(48, T("HP belum terhubung", "Phone not connected"));
     return;
   }
   if (camTimerEnd) {  // hitung mundur besar (10..1)
@@ -479,7 +455,7 @@ static void drawCamera() {
     display.setCursor(64 - (int)strlen(digit) * 12, 18);
     display.print(digit);
     display.setTextSize(1);
-    centerLine(56, "BACK: batal");
+    centerLine(56, T("BACK: batal", "BACK: cancel"));
     return;
   }
   display.drawBitmap(0, 14, ICON_PHONE_CAMERA, 32, 32, SSD1306_WHITE);
@@ -487,15 +463,15 @@ static void drawCamera() {
   display.setCursor(36, 14); display.print("Timer:");
   char t[8];
   uint8_t sec = CAM_TIMER_OPTS[camTimerIdx];
-  if (sec) snprintf(t, sizeof(t), "%u dtk", sec);
+  if (sec) snprintf(t, sizeof(t), T("%u dtk", "%u sec"), sec);
   else snprintf(t, sizeof(t), "OFF");
   display.setTextSize(2);
   display.setCursor(36, 25);
   display.print(t);
   display.setTextSize(1);
-  display.setCursor(36, 43); display.print("Buka Kamera HP");
+  display.setCursor(36, 43); display.print(T("Buka Kamera HP", "Open camera"));
   display.drawFastHLine(0, 53, 128, SSD1306_WHITE);
-  centerLine(56, "<> timer  OK jepret");
+  centerLine(56, T("<> timer  OK jepret", "<> timer  OK snap"));
 }
 
 static void draw() {
@@ -554,31 +530,29 @@ static void musicTick() {
   }
 }
 
-// Musik: OK = putar/jeda; ketuk kiri/kanan = volume -/+; tahan kiri/kanan 0,6 dtk = lagu sebelumnya/berikutnya
+// Musik: ketuk kiri/kanan = lagu sebelumnya/berikutnya, OK = putar/jeda, tahan kiri/kanan = volume -/+ (berulang)
 static bool musicInput() {
   bool changed = false;
   uint32_t now = millis();
-  if (btn_pressed(BTN_OK)) { ble_musicControl(MUSIC_TOGGLE); feedback(1); changed = true; }
+  if (btn_pressed(BTN_OK)) { ble_musicControl(MUSIC_TOGGLE); feedback(2); changed = true; }
   if (btn_pressed(MUSIC_LEFT)) { holdBtn = MUSIC_LEFT; holdStart = now; repeated = false; }
   if (btn_pressed(MUSIC_RIGHT)) { holdBtn = MUSIC_RIGHT; holdStart = now; repeated = false; }
   if (holdBtn >= 0) {
     bool right = holdBtn == MUSIC_RIGHT;
     if (btn_held((Btn)holdBtn)) {
-      if (!repeated && now - holdStart >= TRACK_HOLD_MS) {
-        ble_musicControl(right ? MUSIC_NEXT : MUSIC_PREVIOUS);
-        trackDir = right ? 1 : -1;
-        trackUntil = now + TRACK_SHOW_MS;
-        repeated = true;
-      }
-      changed = true;  // bar tahan terisi
-    } else {
-      if (!repeated) {  // ketukan (dilepas sebelum 0,6 dtk) = volume
+      if (now - holdStart >= HOLD_MS && now - lastRepeat >= REPEAT_MS) {
         ble_musicControl(right ? VOLUME_UP : VOLUME_DOWN);
         volumeStep(right ? 1 : -1);
-        feedback(right ? 2 : 0);
+        lastRepeat = now;
+        repeated = changed = true;
+      }
+    } else {
+      if (!repeated) {  // ketukan (dilepas sebelum 0,6 dtk) = ganti lagu
+        ble_musicControl(right ? MUSIC_NEXT : MUSIC_PREVIOUS);
+        feedback(right ? 1 : 0);
+        changed = true;
       }
       holdBtn = -1;
-      changed = true;
     }
   }
   return changed;

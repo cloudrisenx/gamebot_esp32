@@ -1,4 +1,5 @@
 #include <esp_partition.h>
+#include "lang.h"
 #include "text_screen.h"
 #include "clockstore.h"
 #include "ota.h"
@@ -13,6 +14,7 @@
 #include "ble_link.h"
 #include "power.h"
 #include "frames_store.h"
+#include "screen.h"
 #include "version.h"
 #include <esp_ota_ops.h>
 
@@ -86,8 +88,8 @@ static void drawStatus() {
     display.print(progress);
     display.print("%");
     display.setCursor(0, 48);
-    display.print("Jangan tutup halaman");
-  } else if (status == "Gagal" && uploadErr.length()) {
+    display.print(T("Jangan tutup halaman", "Keep the page open"));
+  } else if (status == T("Gagal", "Failed") && uploadErr.length()) {
     display.setCursor(0, 28);
     display.print(uploadErr.substring(0, 21));
     display.setCursor(0, 37);
@@ -111,16 +113,16 @@ static void draw() {
     marquee_draw(63, 20, 65, ssid.c_str());
     rightText(31, "Pass:");
     marquee_draw(63, 40, 65, password.c_str());
-    rightText(55, "OK:lanjut");
+    rightText(55, T("OK:lanjut", "OK:next"));
   } else {
     drawQr(qrUrl);
     rightText(0, "2/2 Web");
-    rightText(11, "Buka:");
+    rightText(11, T("Buka:", "Open:"));
     rightText(20, "192.168.4.1");
-    rightText(31, "HP: " + String(WiFi.softAPgetStationNum()));
-    rightText(40, "Data sel");
-    rightText(48, "OFF");
-    rightText(56, "OK:kembali");
+    rightText(31, T("HP: ", "Phone: ") + String(WiFi.softAPgetStationNum()));
+    rightText(40, T("Data sel", "Mobile"));
+    rightText(48, T("OFF", "data OFF"));
+    rightText(56, T("OK:kembali", "OK:back"));
   }
   oled_flush();
 }
@@ -187,7 +189,7 @@ static void handleFirmwareDone() {
     rebootPending = true;
     rebootAt = millis() + 2000;
   } else {
-    status = "Gagal";
+    status = T("Gagal", "Failed");
     sendResult(false, uploadErr);
   }
   draw();
@@ -197,7 +199,7 @@ static void handleFramesUpload() {
   HTTPUpload &up = server.upload();
   switch (up.status) {
     case UPLOAD_FILE_START:
-      status = "Animasi";
+      status = T("Animasi", "Animation");
       framesHdrLen = 0;
       uploadOk = true;
       uploadErr = "";
@@ -236,7 +238,7 @@ static void handleFramesDone() {
     status = "Anim OK";
     sendResult(true, "Animasi tersimpan: " + String(frames_count()) + " frame @ " + String(frames_fps()) + " fps.");
   } else {
-    status = "Gagal";
+    status = T("Gagal", "Failed");
     sendResult(false, uploadErr);
   }
   draw();
@@ -320,7 +322,7 @@ void ota_enter() {
   marquee_reset();
   progress = -1;
   rebootPending = false;
-  status = "Menunggu";
+  status = T("Menunggu", "Waiting");
   statusUntil = 0;
   otaStep = 1;
   lastStations = 0;
@@ -408,6 +410,78 @@ void ota_bgPoll() {
     clock_save("restart OTA");
     ESP.restart();
   }
+}
+
+// ---- Menu WiFi bersama (Teks & Animasi): tahan OK = buka, di menu OK = hidup/mati OTA, BACK = tutup ----
+static const uint32_t MENU_HOLD_MS = 600;
+static bool hmOpen = false, hmDown = false, hmLong = false;  // hmLong: tahan ini sudah membuka menu
+static uint32_t hmDownAt = 0, hmLastDraw = 0;
+
+void ota_holdMenuReset() { hmOpen = hmDown = hmLong = false; }
+
+static void drawHoldMenu(const char *title, const char *hint1, const char *hint2) {
+  screen_landscape();  // animasi potret memutar layar
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextWrap(false);
+  display.setTextColor(SSD1306_WHITE);
+  bool on = ota_bgRunning();
+  display.setCursor(0, 0);
+  display.print(title);
+  display.drawFastHLine(0, 9, 128, SSD1306_WHITE);
+  display.fillRoundRect(0, 13, 128, 13, 3, SSD1306_WHITE);
+  display.setTextColor(SSD1306_BLACK);
+  const char *action = on ? T("Matikan OTA", "Turn OTA off") : T("Hidupkan OTA", "Turn OTA on");
+  display.setCursor((128 - (int)strlen(action) * 6) / 2, 16);
+  display.print(action);
+  display.setTextColor(SSD1306_WHITE);
+  if (on) {
+    display.setCursor(0, 30);
+    display.print("WiFi: " + ssid);
+    display.setCursor(0, 40);
+    display.print("Pass: " + password);
+    display.setCursor(0, 50);
+    display.print(T("Buka 192.168.4.1", "Open 192.168.4.1"));
+  } else {
+    display.setCursor(0, 32);
+    display.print(hint1);
+    display.setCursor(0, 42);
+    display.print(hint2);
+  }
+  display.setTextWrap(true);
+  oled_flush();
+}
+
+OtaMenu ota_holdMenu(const char *title, const char *hint1, const char *hint2) {
+  ota_bgPoll();
+  // OK: ketuk dinilai saat dilepas, tahan MENU_HOLD_MS = buka menu (sekali per tahan)
+  if (btn_pressed(BTN_OK)) { hmDown = true; hmLong = false; hmDownAt = millis(); }
+  bool tap = false, redraw = false;
+  if (hmDown) {
+    if (!btn_held(BTN_OK)) {
+      hmDown = false;
+      tap = !hmLong;
+    } else if (!hmLong && !hmOpen && millis() - hmDownAt >= MENU_HOLD_MS) {
+      hmLong = hmOpen = redraw = true;
+    }
+  }
+  if (!hmOpen) return tap ? OM_TAP : OM_NONE;
+  if (btn_pressed(BTN_BACK)) {
+    hmOpen = false;
+    buttons_clear();
+    return OM_CLOSED;
+  }
+  if (tap) {
+    if (ota_bgRunning()) ota_bgStop();
+    else ota_bgStart();
+    redraw = true;
+  }
+  buttons_clear();
+  if (redraw || millis() - hmLastDraw >= 1000) {  // 1 dtk: info WiFi tetap segar
+    hmLastDraw = millis();
+    drawHoldMenu(title, hint1, hint2);
+  }
+  return OM_OPEN;
 }
 
 AppState ota_update(bool redraw) {

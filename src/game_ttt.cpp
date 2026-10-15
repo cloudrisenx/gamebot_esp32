@@ -1,4 +1,5 @@
 #include "game_ttt.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
@@ -182,12 +183,12 @@ static void drawPanel(int x0, uint8_t who) {
   display.print(who == 1 ? "X" : "O");
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  const char *name = mode == MODE_2P ? (who == 1 ? "P1" : "P2") : (who == 1 ? "KAMU" : "CPU");
+  const char *name = mode == MODE_2P ? (who == 1 ? "P1" : "P2") : (who == 1 ? T("KAMU", "YOU") : "CPU");
   centerAt(cx, 24, name);
   char buf[12];
   snprintf(buf, sizeof(buf), "%lu", (unsigned long)(who == 1 ? winsX : winsO));
   centerAt(cx, 35, buf);
-  if (active) centerAt(cx, 50, "MAIN");
+  if (active) centerAt(cx, 50, T("MAIN", "TURN"));
   else if (mode == MODE_CPU && who == 1) {
     snprintf(buf, sizeof(buf), "Hi%lu", (unsigned long)settings_hiscore(GAME_TTT));
     centerAt(cx, 50, buf);
@@ -218,21 +219,21 @@ static void draw() {
   drawPanel(0, 1);
   drawPanel(96, 2);
   if (roundOver && millis() - roundOverAt >= 1000) {
-    const char *msg = result == 0 ? "SERI"
-                      : mode == MODE_2P ? (result == 1 ? "P1 MENANG" : "P2 MENANG")
-                                        : (result == 1 ? "KAMU MENANG" : "CPU MENANG");
+    const char *msg = result == 0 ? T("SERI", "DRAW")
+                      : mode == MODE_2P ? (result == 1 ? T("P1 MENANG", "P1 WINS") : T("P2 MENANG", "P2 WINS"))
+                                        : (result == 1 ? T("KAMU MENANG", "YOU WIN") : T("CPU MENANG", "CPU WINS"));
     int w = max((int)strlen(msg), 8) * 6 + 10;  // minimal selebar "OK: lagi"
     int x = (128 - w) / 2;
     display.fillRect(x, 22, w, 24, SSD1306_BLACK);
     display.drawRect(x, 22, w, 24, SSD1306_WHITE);
     centerAt(64, 26, msg);
-    centerAt(64, 35, "OK: lagi");
+    centerAt(64, 35, T("OK: lagi", "OK: again"));
   }
   if (exitHolding) {  // tahan kanan + OK: bar menuju keluar
     uint32_t held = min((uint32_t)(millis() - exitHoldStart), EXIT_HOLD_MS);
     display.fillRect(24, 48, 80, 14, SSD1306_BLACK);
     display.drawRect(24, 48, 80, 14, SSD1306_WHITE);
-    display.setCursor(28, 50); display.print("Keluar...");
+    display.setCursor(28, 50); display.print(T("Keluar...", "Exiting..."));
     display.fillRect(28, 58, held * 72 / EXIT_HOLD_MS, 2, SSD1306_WHITE);
   }
   oled_flush();
@@ -243,8 +244,8 @@ static void drawReady() {
   snprintf(modeLine, sizeof(modeLine), "< %s >", mode == MODE_2P ? "2P vs 2P" : "1P vs CPU");
   static const char *controls[3];
   controls[0] = modeLine;
-  controls[1] = "Kiri/kanan: kotak";
-  controls[2] = mode == MODE_2P ? "Keluar: kanan+OK" : "OK: taruh";
+  controls[1] = T("Kiri/kanan: kotak", "Left/right: cell");
+  controls[2] = mode == MODE_2P ? T("Keluar: kanan+OK", "Exit: right+OK") : T("OK: taruh", "OK: place");
   games_drawReady("XO", controls, 3, settings_hiscore(GAME_TTT));
 }
 

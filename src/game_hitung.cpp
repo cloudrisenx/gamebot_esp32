@@ -1,4 +1,5 @@
 #include "game_hitung.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
@@ -201,7 +202,7 @@ static void drawSprite(int x, int y, uint8_t kind) { display.drawBitmap(x, y, SP
 
 static const char *nameOf(int who) {
   if (mode == MODE_2P) return who == 0 ? "P1" : "P2";
-  return who == 0 ? "Kamu" : "CPU";
+  return who == 0 ? T("Kamu", "You") : "CPU";
 }
 
 // 2P: separuh layar kiri (x 0..62) dalam koordinat rotasi aktif; who 1 digambar dengan rotasi 180
@@ -216,7 +217,7 @@ static void drawHalf(int who, uint32_t now) {
     display.drawLine(21, 26, 28, 33, SSD1306_WHITE);
     display.drawLine(27, 33, 41, 17, SSD1306_WHITE);
     display.drawLine(28, 33, 42, 17, SSD1306_WHITE);
-    display.setCursor(17, 40); display.print("KUNCI");
+    display.setCursor(17, 40); display.print(T("KUNCI", "LOCK"));
   } else {
     display.setTextSize(3);
     snprintf(buf, sizeof(buf), "%d", vals[who]);
@@ -225,7 +226,7 @@ static void drawHalf(int who, uint32_t now) {
     display.setTextSize(1);
     display.setCursor(1, 40); display.print("-");
     display.setCursor(56, 40); display.print("+");
-    display.setCursor(7, 48); display.print("Tahan -+");  // maks 10 karakter (separuh layar)
+    display.setCursor(7, 48); display.print(T("Tahan -+", "Hold -+"));  // maks 10 karakter (separuh layar)
   }
   uint32_t left = now - subAt >= ANSWER_2P_MS ? 0 : ANSWER_2P_MS - (now - subAt);
   display.drawRect(0, 58, 62, 5, SSD1306_WHITE);
@@ -241,24 +242,24 @@ static void draw() {
 
   if (phase == PH_OVER) {
     if (mode == MODE_CPU) {
-      const char *res = total[0] > total[1] ? "KAMU MENANG" : total[0] < total[1] ? "CPU MENANG" : "SERI";
+      const char *res = total[0] > total[1] ? T("KAMU MENANG", "YOU WIN") : total[0] < total[1] ? T("CPU MENANG", "CPU WINS") : T("SERI", "DRAW");
       snprintf(buf, sizeof(buf), "%s %d-%d", res, total[0], total[1]);
       centerLine(0, buf);
       games_drawOver(total[0], settings_hiscore(GAME_HITUNG));
     } else {
-      centerLine(8, total[0] > total[1] ? "P1 MENANG" : total[0] < total[1] ? "P2 MENANG" : "SERI");
+      centerLine(8, total[0] > total[1] ? T("P1 MENANG", "P1 WINS") : total[0] < total[1] ? T("P2 MENANG", "P2 WINS") : T("SERI", "DRAW"));
       display.setTextSize(2);
       snprintf(buf, sizeof(buf), "%d - %d", total[0], total[1]);
       display.setCursor((128 - (int)strlen(buf) * 12) / 2, 24);
       display.print(buf);
       display.setTextSize(1);
-      centerLine(46, "OK: ulang");
-      centerLine(55, "BACK: keluar");
+      centerLine(46, T("OK: ulang", "OK: again"));
+      centerLine(55, T("BACK: keluar", "BACK: exit"));
     }
   } else if (sub == SB_INTRO) {
-    snprintf(buf, sizeof(buf), "Lv %d - Soal %d", level() + 1, question + 1);
+    snprintf(buf, sizeof(buf), T("Lv %d - Soal %d", "Lv %d - Q %d"), level() + 1, question + 1);
     centerLine(10, buf);
-    display.setCursor(34, 34); display.print("Hitung:");
+    display.setCursor(34, 34); display.print(T("Hitung:", "Count:"));
     // ikon target diperbesar 2x
     for (int r = 0; r < SPR; r++) {
       uint8_t bits = pgm_read_byte(&SPRITES[target][r]);
@@ -278,7 +279,7 @@ static void draw() {
     display.setRotation(0);
     display.drawFastVLine(63, 0, 64, SSD1306_WHITE);
   } else if (sub == SB_ANSWER) {
-    snprintf(buf, sizeof(buf), "%s jawab", nameOf(0));
+    snprintf(buf, sizeof(buf), T("%s jawab", "%s answers"), nameOf(0));
     display.setCursor(0, 0); display.print(buf);
     display.setCursor(108, 0); display.print("=");
     drawSprite(120, 0, target);
@@ -289,25 +290,25 @@ static void draw() {
     display.setTextSize(1);
     display.setCursor(4, 22); display.print("<-");
     display.setCursor(112, 22); display.print("+>");
-    centerLine(44, "Kanan+ Kiri- OK kunci");
+    centerLine(44, T("Kanan+ Kiri- OK kunci", "Right+ Left- OK lock"));
     uint32_t left = now - subAt >= ANSWER_MS ? 0 : ANSWER_MS - (now - subAt);
     display.drawRect(0, 56, 128, 6, SSD1306_WHITE);
     display.fillRect(2, 58, (int)(left * 124 / ANSWER_MS), 2, SSD1306_WHITE);
   } else {  // SB_RESULT
-    snprintf(buf, sizeof(buf), "Benar: %d", correct);
+    snprintf(buf, sizeof(buf), T("Benar: %d", "Correct: %d"), correct);
     centerLine(2, buf);
     drawSprite(60, 12, target);
     for (int i = 0; i < 2; i++) {
       snprintf(buf, sizeof(buf), "%-4s %2d  +%d  =%2d", nameOf(i), answers[i], gained[i], total[i]);
       display.setCursor(4, 26 + i * 10); display.print(buf);
     }
-    centerLine(54, question + 1 >= QUESTIONS ? "OK: hasil akhir" : "OK: lanjut");
+    centerLine(54, question + 1 >= QUESTIONS ? T("OK: hasil akhir", "OK: final result") : T("OK: lanjut", "OK: next"));
   }
   if (backHolding) {  // tahan BACK: bar menuju keluar
     uint32_t held = min((uint32_t)(now - backHoldStart), BACK_HOLD_MS);
     display.fillRect(24, 48, 80, 14, SSD1306_BLACK);
     display.drawRect(24, 48, 80, 14, SSD1306_WHITE);
-    display.setCursor(28, 50); display.print("Keluar...");
+    display.setCursor(28, 50); display.print(T("Keluar...", "Exiting..."));
     display.fillRect(28, 58, held * 72 / BACK_HOLD_MS, 2, SSD1306_WHITE);
   }
   oled_flush();
@@ -324,15 +325,15 @@ static uint8_t atField = 0;    // 0 = Waktu, 1 = Pengecoh
 
 static void drawReady() {
   static char modeLine[24];  // "< 2P serentak > 1,0s" = 20 karakter
-  snprintf(modeLine, sizeof(modeLine), "< %s > %s", mode == MODE_2P ? "2P serentak" : "1P vs CPU",
+  snprintf(modeLine, sizeof(modeLine), "< %s > %s", mode == MODE_2P ? T("2P serentak", "2P together") : "1P vs CPU",
            settings_hitungLv5Name());
   static const char *controls[3];
   controls[0] = modeLine;
   // Baris 4 tidak muat (Best & "OK: mulai" tetap di tempatnya): petunjuk waktu menggantikan baris
   // yang juga dijelaskan di layar main (2P: "Tahan -+" tampil saat menjawab)
-  controls[1] = mode == MODE_2P ? "P1 <>   P2 OK/BACK" : "Kanan+ Kiri- OK kunci";
-  controls[2] = "Tahan OK: atur";
-  games_drawReady("HITUNG", controls, 3, settings_hiscore(GAME_HITUNG));
+  controls[1] = mode == MODE_2P ? "P1 <>   P2 OK/BACK" : T("Kanan+ Kiri- OK kunci", "Right+ Left- OK lock");
+  controls[2] = T("Tahan OK: atur", "Hold OK: setup");
+  games_drawReady(T("HITUNG", "MATH"), controls, 3, settings_hiscore(GAME_HITUNG));
   if (okHolding) {  // bar tahan OK di baris paling bawah
     uint32_t held = min((uint32_t)(millis() - okDownAt), TIME_HOLD_MS);
     display.fillRect(0, 63, (int)(held * 128 / TIME_HOLD_MS), 1, SSD1306_WHITE);
@@ -350,7 +351,7 @@ static void drawTime() {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  centerLine(0, "ATUR HITUNG");
+  centerLine(0, T("ATUR HITUNG", "MATH SETUP"));
   char sec[8], dist[10], line[24];
   for (int lv = 0; lv < 5; lv++) {
     printSeconds(sec, sizeof(sec), settings_hitungLv5MsAt(timeIdx) + (4 - lv) * SHOW_STEP_MS);
@@ -361,7 +362,7 @@ static void drawTime() {
     display.setCursor(19, 10 + lv * 9);
     display.print(line);
   }
-  snprintf(line, sizeof(line), atField == 0 ? "< Waktu %s >" : "< Pengecoh %s >",
+  snprintf(line, sizeof(line), atField == 0 ? T("< Waktu %s >", "< Time %s >") : T("< Pengecoh %s >", "< Decoy %s >"),
            atField == 0 ? settings_hitungLv5NameAt(timeIdx) : settings_hitungDistNameAt(distIdx));
   display.fillRect(0, 55, 128, 9, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);

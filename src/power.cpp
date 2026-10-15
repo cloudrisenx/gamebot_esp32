@@ -1,4 +1,5 @@
 #include "screen.h"
+#include "lang.h"
 #include "buttons.h"
 #include "clockstore.h"
 #include "power.h"
@@ -77,10 +78,10 @@ const char *power_resetReason() {
     case ESP_RST_PANIC:     return "Crash/panic";
     case ESP_RST_INT_WDT:   return "Interrupt WDT";
     case ESP_RST_TASK_WDT:  return "Task WDT";
-    case ESP_RST_WDT:       return "WDT lain";
+    case ESP_RST_WDT:       return T("WDT lain", "Other WDT");
     case ESP_RST_DEEPSLEEP: return "Deep sleep";
     case ESP_RST_BROWNOUT:  return "Brownout";
-    default:                return "Lainnya";
+    default:                return T("Lainnya", "Other");
   }
 }
 

@@ -1,4 +1,5 @@
 #include "game_flappy.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include "buttons.h"
@@ -169,7 +170,8 @@ bool flappy_update(bool redraw) {
     if (!flap) {
       if (redraw) {
         static const char *const CONTROLS[] = {"OK/kiri: kepak"};
-        games_drawReady("FLAPPY", CONTROLS, 1, settings_hiscore(GAME_FLAPPY));
+        static const char *const CONTROLS_EN[] = {"OK/left: flap"};
+        games_drawReady("FLAPPY", LT(CONTROLS, CONTROLS_EN), 1, settings_hiscore(GAME_FLAPPY));
       }
       return true;
     }

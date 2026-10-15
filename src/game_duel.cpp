@@ -1,4 +1,5 @@
 #include "game_duel.h"
+#include "lang.h"
 #include "power.h"
 #include <Adafruit_SSD1306.h>
 #include <Preferences.h>
@@ -167,19 +168,20 @@ static void draw() {
 
   if (phase == PH_PLAY || phase == PH_OVER) {
     if (rs == RS_WAIT) {
-      centerLine(28, "Siap...");
+      centerLine(28, T("Siap...", "Ready..."));
     } else if (rs == RS_FIRE) {
       display.setTextSize(2);
-      display.setCursor(64 - 24, 26);
-      display.print("DOR!");
+      const char *fire = T("DOR!", "BANG!");
+      display.setCursor(64 - (int)strlen(fire) * 6, 26);
+      display.print(fire);
       display.setTextSize(1);
     } else {
       const char *who = roundWinner == 1 ? "P1" : (mode == MODE_2P ? "P2" : "CPU");
       if (roundTie) {
-        centerLine(20, "SERI! ulang");
-        snprintf(buf, sizeof(buf), "beda < 1ms");  // maks 10 karakter: tidak menabrak tangan koboi
+        centerLine(20, T("SERI! ulang", "DRAW! again"));
+        snprintf(buf, sizeof(buf), T("beda < 1ms", "diff < 1ms"));  // maks 10 karakter: tidak menabrak tangan koboi
       } else if (foul) {
-        centerLine(20, "CURANG!");
+        centerLine(20, T("CURANG!", "FOUL!"));
         snprintf(buf, sizeof(buf), "%s +1", who);
       } else {
         snprintf(buf, sizeof(buf), "%s +1", who);
@@ -193,13 +195,13 @@ static void draw() {
   if (phase == PH_OVER) {
     if (mode == MODE_CPU) games_drawOver(pts1, settings_hiscore(GAME_DUEL));
     else {
-      const char *l1 = matchWinner == 1 ? "P1 MENANG" : "P2 MENANG";
+      const char *l1 = matchWinner == 1 ? T("P1 MENANG", "P1 WINS") : T("P2 MENANG", "P2 WINS");
       int w = 9 * 6 + 10, x = (128 - w) / 2;
       display.fillRect(x, 20, w, 24, SSD1306_BLACK);
       display.drawRect(x, 20, w, 24, SSD1306_WHITE);
       display.setTextColor(SSD1306_WHITE);
       centerLine(24, l1);
-      centerLine(33, "OK: ulang");
+      centerLine(33, T("OK: ulang", "OK: again"));
     }
   }
   if (exitHolding) {  // tahan kanan + OK: bar menuju keluar
@@ -207,7 +209,7 @@ static void draw() {
     display.fillRect(24, 48, 80, 14, SSD1306_BLACK);
     display.drawRect(24, 48, 80, 14, SSD1306_WHITE);
     display.setTextColor(SSD1306_WHITE);
-    display.setCursor(28, 50); display.print("Keluar...");
+    display.setCursor(28, 50); display.print(T("Keluar...", "Exiting..."));
     display.fillRect(28, 58, held * 72 / EXIT_HOLD_MS, 2, SSD1306_WHITE);
   }
   oled_flush();
@@ -218,8 +220,8 @@ static void drawReady() {
   snprintf(modeLine, sizeof(modeLine), "< %s >", mode == MODE_2P ? "2P vs 2P" : "1P vs CPU");
   static const char *controls[3];
   controls[0] = modeLine;
-  controls[1] = "Tunggu DOR!, tekan";
-  controls[2] = mode == MODE_2P ? "P1 kiri, P2 BACK" : "Kiri: tembak";
+  controls[1] = T("Tunggu DOR!, tekan", "Wait for BANG!, press");
+  controls[2] = mode == MODE_2P ? T("P1 kiri, P2 BACK", "P1 left, P2 BACK") : T("Kiri: tembak", "Left: shoot");
   games_drawReady("DUEL", controls, 3, settings_hiscore(GAME_DUEL));
 }
 
