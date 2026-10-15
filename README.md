@@ -63,7 +63,7 @@ OK = pause, left/right = speed, **hold OK** = WiFi menu (turn OTA on, then send 
 from the start right away), BACK = exit (OTA off).
 
 **Text**: big running text in the main menu (left/right = speed, OK = pause). The text (max 200 characters,
-plain letters/digits/punctuation plus 24 emoji drawn as icons the height of the letters: ❤️ 😀 😂 😍 😢 😡 👍 🙏 🔥 ⭐ 🎉 ☀️ 🌙 ✨ 😎 🤣
+plain letters/digits/punctuation plus 24 emoji drawn as icons: ❤️ 😀 😂 😍 😢 😡 👍 🙏 🔥 ⭐ 🎉 ☀️ 🌙 ✨ 😎 🤣
 💩 😑 🤔 😴 😱 💀 👋 💯;
 a few others become ASCII like `:)` `;)` `:P`, the rest are dropped) is set on the OTA page, **Text** tab (tap the emoji buttons). **Hold OK** = WiFi menu: turn OTA on (the text keeps running and changes from the phone show up
 immediately; Bluetooth is off while OTA is on), BACK returns to the text. Leaving Text turns OTA off.
