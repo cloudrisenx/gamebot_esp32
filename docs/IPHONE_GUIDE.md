@@ -51,7 +51,9 @@ In iPhone mode the **Navigation** menu and **Phone → Weather** are hidden.
 ## 3. Disconnecting / changing phones
 
 1. On the iPhone: **Settings → Bluetooth → ⓘ next to cute_device → Forget This Device**.
-2. On the watch: **Settings → Remove pairing (Hapus pairing)**, press **OK** twice ("OK?" then "Ok").
+2. On the watch: **Settings → Forget phones (Hapus pairing HP)**, press **OK** twice ("OK again?" then "Deleted").
+   This works in Android and iPhone mode, removes every paired phone (also the Camera remote pairing)
+   and restarts Bluetooth, so the phone has to pair from scratch.
 3. Pair the new iPhone with the steps in section 1.
 
 Back to Android: **Menu → Phone → Phone mode → Android**, then connect from the Chronos app as usual.
@@ -67,7 +69,9 @@ Back to Android: **Menu → Phone → Phone mode → Android**, then connect fro
 
 **Notifications do not arrive**
 - During pairing the **"Share System Notifications"** question must be answered **Allow**. If you missed it:
-  forget the device on the iPhone, **Remove pairing** on the watch, then pair again.
+  forget the device on the iPhone, **Forget phones** on the watch, then pair again.
+- Pairing keeps failing (e.g. a phone that was paired before): forget the device on the iPhone, run
+  **Settings → Forget phones** on the watch, turn the iPhone's Bluetooth off and on, then pair again.
 - On the watch: **Settings → Notif pop-up** must not be **OFF** (choose **WhatsApp** or **All**).
 - The notification has to actually appear on the iPhone (chat not open, not muted, Focus/Do Not Disturb off).
 

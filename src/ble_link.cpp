@@ -521,7 +521,15 @@ bool ble_musicProgress(uint32_t &elapsedMs, uint32_t &durationMs) {
 
 void ble_callAnswer(bool accept) { if (ble_isIphone()) ios_callAction(accept); }
 
-bool ble_deletePairings() { return ios_deleteBonds(); }
+// Hapus semua pairing (Android & iPhone, juga Remote kamera), lalu restart BLE: koneksi lama putus
+// dan HP harus pairing dari awal
+bool ble_deletePairings() {
+  bool ok = ios_deleteBonds();
+  remote_clearBonds();
+  ble_restartRadio();  // ble_update() menyalakan lagi
+  Serial.printf("[BT] hapus pairing: bond aktif %s, bond_main/bond_hid dihapus, BLE restart\n", ok ? "dihapus" : "GAGAL");
+  return ok;
+}
 
 // Fitur khusus Android (Chronos): di mode iPhone tidak tersedia
 // Tanpa data dari Chronos (mis. setelah restart): pakai cache terakhir

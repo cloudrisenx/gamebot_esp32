@@ -63,7 +63,7 @@ bool ble_phoneInfoChanged();  // true sekali setiap ada info musik/cuaca baru
 bool ble_isIphone();
 bool ble_musicProgress(uint32_t &elapsedMs, uint32_t &durationMs);  // posisi & durasi lagu (hanya iPhone)
 void ble_callAnswer(bool accept);  // iPhone: angkat/tolak panggilan yang berdering
-bool ble_deletePairings();         // hapus semua pairing (bond) iPhone
+bool ble_deletePairings();         // hapus semua pairing (Android/iPhone/Remote) + restart BLE
 
 // Dipakai ios_link agar notifikasi/panggilan/jam memakai jalur yang sama dengan mode Android
 void ble_pushNotification(int icon, const char *app, const char *title, const char *msg);

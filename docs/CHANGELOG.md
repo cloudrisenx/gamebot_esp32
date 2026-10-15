@@ -82,7 +82,7 @@ The device name used to differ from place to place. Everything now uses **`cute_
 
 After the rename (note in the tests):
 - [ ] **Android:** in the Chronos app, remove the old device and add **cute_device** again.
-- [ ] **iPhone:** "Forget This Device" for the old one in Settings → Bluetooth + **Settings → Remove pairing** on the watch,
+- [ ] **iPhone:** "Forget This Device" for the old one in Settings → Bluetooth + **Settings → Forget phones** on the watch,
       then pair **cute_device** again (iPhone often caches the old name).
 - [ ] **OTA WiFi:** phones that joined `ESP32C3-OTA` before must join the new WiFi name (scan the QR again).
 
@@ -109,7 +109,7 @@ After the rename (note in the tests):
 - [ ] Calls: pop-up, **OK answer / BACK reject**.
 - [ ] Music: title, artist, `position/length` + progress bar, all control buttons.
 - [ ] Navigation / Weather hidden in iPhone mode (since v1.9.25).
-- [ ] Remove pairing → iPhone asks to pair again; back to Android mode → Chronos works normally.
+- [ ] Forget phones → iPhone asks to pair again; back to Android mode → Chronos works normally.
 - [ ] If the watch does not show in the iPhone Bluetooth list → try the nRF Connect / LightBlue app (note the result).
 
 **Power saving (v1.5.1):**
@@ -118,6 +118,7 @@ After the rename (note in the tests):
 - [ ] (Optional) measure the current with a USB power meter.
 
 **Other:**
+- [ ] Forget phones v1.9.29: Settings → Forget phones (Hapus pairing HP), OK, OK again → "Deleted"; works in Android and iPhone mode; the connected phone drops, Bluetooth restarts, and every phone (Chronos, iPhone, Camera remote) has to pair again. Serial `[BT] hapus pairing: bond aktif dihapus, bond_main/bond_hid dihapus, BLE restart`.
 - [ ] Language v1.9.28: Settings → Language (Bahasa) → OK switches Indonesia ⇄ English immediately, without a restart; every screen (menus, settings, Home, Phone, games, OTA, Animation, Text) follows; English text is not cut off on the right; the choice survives a restart; Reset data → back to Indonesian.
 - [ ] Animation v1.9.27: hold OK = "WIFI ANIMASI" menu (turn OTA on/off, WiFi info), tap OK = pause, BACK in the menu returns to the animation; sending an animation from the Animasi tab → plays from the start right away; leaving Animation = OTA off.
 - [ ] Music v1.9.27: left = previous song, right = next, OK = play/pause, BACK = back, hold left/right = volume (VOL box). Bottom legend: |<<  >>|  play  BACK.

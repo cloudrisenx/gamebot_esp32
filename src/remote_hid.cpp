@@ -104,6 +104,15 @@ static void setInHid(bool inHid) {
   if (p.begin("bond_state", false)) { p.putUChar("inhid", inHid); p.end(); }
 }
 
+// Setting > Hapus pairing: cadangan bond mode biasa & pairing Remote ikut dibuang (Remote harus tidak aktif)
+void remote_clearBonds() {
+  for (const char *ns : {"bond_main", "bond_hid"}) {
+    Preferences p;
+    if (p.begin(ns, false)) { p.clear(); p.end(); }
+  }
+  setInHid(false);
+}
+
 static bool inHid() {
   Preferences p;
   if (!p.begin("bond_state", true)) return false;

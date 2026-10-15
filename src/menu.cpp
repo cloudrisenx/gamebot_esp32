@@ -103,12 +103,12 @@ enum SettingItem {
 static const char *SETTING_LABELS[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Jam", "Bahasa", "Layar mati", "Mode hemat", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
   "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Mode flash", "Reset data", "Update OTA",
-  "Panduan iPhone", "Hapus pairing", "Info"
+  "Panduan iPhone", "Hapus pairing HP", "Info"
 };
 static const char *SETTING_LABELS_EN[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Clock", "Language", "Screen off", "Power save", "Night", "Brightness", "OLED I2C", "OLED test",
   "Boot animation", "Reset hi-score", "Sleep now", "Restart", "Flash mode", "Reset data", "OTA update",
-  "iPhone guide", "Remove pairing", "Info"
+  "iPhone guide", "Forget phones", "Info"
 };
 
 // Panduan pairing iPhone (maks 21 karakter/baris, sama dengan docs/IPHONE_GUIDE.md)
@@ -131,7 +131,7 @@ static const char *const GUIDE_LINES[] = {
   "   LightBlue, Connect",
   "6. Ganti HP: Lupakan",
   "  Perangkat di iPhone",
-  "   + Hapus pairing",
+  "   + Hapus pairing HP",
   "7. Hanya Android:",
   "   Navigasi & Cuaca"
 };
@@ -153,7 +153,7 @@ static const char *const GUIDE_LINES_EN[] = {
   "   LightBlue, Connect",
   "6. New phone: Forget",
   "  Device on iPhone",
-  "   + Remove pairing",
+  "   + Forget phones",
   "7. Android only:",
   "   Navigation&Weather"
 };
@@ -513,9 +513,8 @@ static String settingValue(int item) {
       if (millis() < btRestartConfirmUntil) return T("OK lagi?", "OK again?");
       return ">";
     case SI_UNPAIR:
-      if (settings_phoneMode() != PHONE_IPHONE) return "-";
-      if (millis() < unpairDoneUntil) return unpairOk ? "Ok" : T("Gagal", "Failed");
-      if (millis() < unpairConfirmUntil) return "OK?";
+      if (millis() < unpairDoneUntil) return unpairOk ? T("Dihapus", "Deleted") : T("Gagal", "Failed");
+      if (millis() < unpairConfirmUntil) return T("OK lagi?", "OK again?");
       return ">";
     case SI_SCREEN:   return SCREEN_OPTS[settings_screenIdx()];
     case SI_PM_MODE:  return LIGHT_SLEEP_SUPPORTED ? settings_pmModeName() : "-";
@@ -582,7 +581,6 @@ static void activateSetting(int item) {
       break;
     }
     case SI_UNPAIR:
-      if (settings_phoneMode() != PHONE_IPHONE) break;
       if (millis() < unpairConfirmUntil) {
         unpairOk = ble_deletePairings();
         unpairConfirmUntil = 0;

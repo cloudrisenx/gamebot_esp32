@@ -7,6 +7,7 @@
 void remote_begin();
 void remote_recoverBonds();   // panggil sekali saat boot: pulihkan bond mode biasa bila reset saat HID aktif
 void remote_end();
+void remote_clearBonds();     // hapus cadangan bond_main & pairing Remote (bond_hid) di NVS
 void remote_update();         // panggil tiap loop: reset BLE otomatis bila pairing gagal berulang
 bool remote_running();
 bool remote_connected();      // terhubung & terenkripsi (laporan HID bisa dikirim)
