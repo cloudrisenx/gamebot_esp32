@@ -7,11 +7,9 @@
 .vscode/extensions.json
 
 # Hasil build / file rilis (dibagikan lewat GitHub Release, bukan repo)
-firmware_ota.bin
-frames.bin
-release.md
+firmware/
 backup/
-lightsleepbuild/
+frames_*.bin
 
 # Artefak hybrid compile pioarduino (env lightsleep)
 .dummy/
@@ -20,3 +18,7 @@ sdkconfig.lightsleep
 managed_components/
 CMakeLists.txt
 dependencies.lock
+.pio_lightsleep/
+
+# Catatan lokal untuk Claude Code (tidak dipublikasikan)
+CLAUDE.md

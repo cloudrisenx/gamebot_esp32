@@ -1,4 +1,4 @@
-# PlatformIO post-build: salin firmware.bin ke root proyek sebagai firmware_ota.bin
+# PlatformIO post-build: salin firmware.bin ke firmware/firmware_ota.bin
 # (siap di-upload lewat tab Firmware di halaman OTA) dan gagalkan build bila
 # ukurannya melebihi slot OTA di partitions.csv.
 import os
@@ -8,7 +8,7 @@ import shutil
 Import("env")  # noqa: F821  (disediakan PlatformIO)
 
 PROJECT_DIR = env.subst("$PROJECT_DIR")  # noqa: F821
-OUT_NAME = "firmware_ota.bin"
+OUT_NAME = os.path.join("firmware", "firmware_ota.bin")
 
 
 def read_version():
@@ -35,6 +35,7 @@ def copy_ota(source, target, env):
     if size > slot:
         print(f"ERROR: firmware {size} byte melebihi slot OTA {slot} byte - tidak bisa di-update via OTA!")
         env.Exit(1)
+    os.makedirs(os.path.join(PROJECT_DIR, "firmware"), exist_ok=True)
     shutil.copyfile(src, os.path.join(PROJECT_DIR, OUT_NAME))
     print(f"OTA siap: {OUT_NAME} v{version} - {size} byte ({size * 100 // slot}% slot)")
 
