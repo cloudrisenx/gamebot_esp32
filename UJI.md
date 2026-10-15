@@ -23,7 +23,7 @@ Hasil build ada di `lightsleepbuild/` (tidak di-commit; dibuat `tools\flash_ligh
 Pertama kali pindah partisi (dari folder itu, ganti `COM5` dengan port jam):
 
 ```powershell
-cd "G:\esp32 c3\ESP32\lightsleepbuild"
+cd "G:\esp32_c3\ESP32\lightsleepbuild"
 pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32c3 --port COM5 --baud 460800 write_flash 0x0 firmware.factory.bin
 # Hapus sisa animasi lama di area frames baru (setting/NVS TIDAK terhapus)
 pio pkg exec -p tool-esptoolpy -- esptool.py --chip esp32c3 --port COM5 erase_region 0x390000 0x60000
@@ -79,7 +79,7 @@ Catat juga lonjakan saat BLE connection event; multimeter biasa menampilkan rata
 ## 5. Kembali ke v1.9.20 (partisi lama) — lewat USB
 
 ```powershell
-cd "G:\esp32 c3\ESP32"
+cd "G:\esp32_c3\ESP32"
 git switch main
 pio run -e esp32-c3-devkitm-1 -t upload   # bootloader + partisi lama + boot_app0 + app v1.9.20
 ```
@@ -93,8 +93,8 @@ Cara cepat: `tools\flash_lightsleep.ps1` (mengerjakan langkah di bawah). Manual:
 path tanpa spasi, core terpisah. JANGAN lewat tombol Build/Upload VS Code untuk env ini:
 
 ```powershell
-cd G:\esp32_lightsleep\wt
-$env:PLATFORMIO_CORE_DIR = 'G:\esp32_lightsleep\pio'
+cd G:\esp32_c3\esp32_lightsleep\wt
+$env:PLATFORMIO_CORE_DIR = 'G:\esp32_c3\esp32_lightsleep\pio'
 pio run -e lightsleep
 git checkout -- web/ota.html   # build menambah byte NUL di akhir file ini
 ```

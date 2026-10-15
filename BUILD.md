@@ -11,7 +11,7 @@ Yang dipakai di jam sekarang: **light sleep**.
 
 ## Firmware light sleep (yang dipakai)
 
-Dari terminal VS Code di `G:\esp32 c3\ESP32`:
+Dari terminal VS Code di `G:\esp32_c3\ESP32`:
 
 ```powershell
 # build + upload lewat USB (COM7). Nyalakan layar jam dulu (USB mati saat light sleep)
@@ -29,9 +29,9 @@ Upload lewat USB gagal? Di jam: **Setting → Mode flash → OK, OK lagi** (laya
 Upload lewat **OTA**: jam **Setting → Update OTA** → sambung HP/laptop ke WiFi yang tampil di layar →
 buka `http://192.168.4.1` → tab **Firmware** → pilih `lightsleepbuild\firmware.bin` → Update firmware.
 
-**JANGAN** build env `lightsleep` lewat tombol VS Code atau dari folder ini: pioarduino gagal di path berspasi
-(`esp32 c3`) dan menimpa PlatformIO global. Skrip di atas build di `G:\esp32_lightsleep\wt` (salinan kerja
-otomatis, jangan diedit) dengan PlatformIO terpisah `G:\esp32_lightsleep\pio`. Build pertama ±25-40 menit, berikutnya ±1-2 menit.
+**JANGAN** build env `lightsleep` lewat tombol VS Code: pioarduino akan menimpa PlatformIO
+global (`G:\pio_global`) dan merusak build firmware biasa. Skrip di atas build di `G:\esp32_c3\esp32_lightsleep\wt` (salinan kerja
+otomatis, jangan diedit) dengan PlatformIO terpisah `G:\esp32_c3\esp32_lightsleep\pio`. Build pertama ±25-40 menit, berikutnya ±1-2 menit.
 
 ## Firmware biasa (tanpa light sleep)
 
@@ -40,7 +40,7 @@ memastikan tombol ini hanya memakai env biasa. Hasil OTA: `firmware_ota.bin` (di
 
 ## Alur kerja
 
-1. Edit kode di `G:\esp32 c3\ESP32` (bukan di `G:\esp32_lightsleep\wt`), commit.
+1. Edit kode di `G:\esp32_c3\ESP32` (bukan di `G:\esp32_c3\esp32_lightsleep\wt`), commit.
 2. `tools\flash_lightsleep.ps1` — otomatis mengambil commit terbaru, build, upload.
 3. Push: `git push origin main` (tanpa baris Co-Authored-By).
 
@@ -53,6 +53,6 @@ Partisi baru (app 1,75 MB, animasi 384 KB) wajib lewat USB sekali: lihat [UJI.md
 
 | Folder | Untuk |
 |---|---|
-| `G:\pio_global` (setelah `G:\esp32 c3\pindah_pio_global.ps1`) atau `C:\Users\<user>\.platformio` | PlatformIO global (tombol VS Code) |
-| `G:\esp32_lightsleep\pio` | khusus build light sleep |
-| `G:\esp32_lightsleep\wt` | salinan kerja untuk build light sleep |
+| `G:\pio_global` (setelah `G:\esp32_c3\pindah_pio_global.ps1`) atau `C:\Users\<user>\.platformio` | PlatformIO global (tombol VS Code) |
+| `G:\esp32_c3\esp32_lightsleep\pio` | khusus build light sleep |
+| `G:\esp32_c3\esp32_lightsleep\wt` | salinan kerja untuk build light sleep |
