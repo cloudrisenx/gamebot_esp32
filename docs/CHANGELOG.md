@@ -118,6 +118,7 @@ After the rename (note in the tests):
 - [ ] (Optional) measure the current with a USB power meter.
 
 **Other:**
+- [ ] Text emoji v1.9.32: icons are 16x16 drawn at 2x (32 px, a bit taller than the letters), made from the Windows emoji font; faces show eyes/mouth and are easy to tell apart; scrolling stays smooth.
 - [ ] Text emoji v1.9.31: 8 more icons (💩 😑 🤔 😴 😱 💀 👋 💯), 24 in total; 😐 now shows as the -_- icon.
 - [ ] Text emoji v1.9.30: OTA page Text tab: tap emoji buttons (or type from the phone keyboard) → Save; on the watch the 16 emoji show as icons the same height as the letters, scrolling smoothly; 🙂 shows as ":)"; reopening the tab shows the emoji again; old text without emoji looks the same. Icons: `python tools/emoji_glyphs.py`, check: `python tools/test_emoji.py`.
 - [ ] Forget phones v1.9.29: Settings → Forget phones (Hapus pairing HP), OK, OK again → "Deleted"; works in Android and iPhone mode; the connected phone drops, Bluetooth restarts, and every phone (Chronos, iPhone, Camera remote) has to pair again. Serial `[BT] hapus pairing: bond aktif dihapus, bond_main/bond_hid dihapus, BLE restart`.
