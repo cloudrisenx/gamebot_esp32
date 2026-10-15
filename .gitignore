@@ -1,16 +1,22 @@
+# Build PlatformIO & file IDE (dibuat ulang otomatis)
 .pio
 .vscode/.browse.c_cpp.db*
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+.vscode/extensions.json
+
+# Hasil build / file rilis (dibagikan lewat GitHub Release, bukan repo)
 firmware_ota.bin
 frames.bin
 release.md
 backup/
+lightsleepbuild/
+
+# Artefak hybrid compile pioarduino (env lightsleep)
 .dummy/
 sdkconfig.defaults
 sdkconfig.lightsleep
 managed_components/
 CMakeLists.txt
 dependencies.lock
-lightsleepbuild/
