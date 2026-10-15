@@ -13,8 +13,8 @@ extern Adafruit_SSD1306 display;
 
 static const int CHAR_W = 18, TEXT_Y = 18;          // font bawaan ukuran 3: 18x24 px
 // Emoji disimpan sebagai 1 byte kode 0x01..EMOJI_COUNT (byte kontrol, tidak dipakai teks biasa)
-static const int EMOJI_W = 34;                      // ikon 16x16 diperbesar x2 (32 px) + 2 px jarak
-static const int EMOJI_Y = TEXT_Y - 5;               // 32 px dipusatkan terhadap huruf (y 18..41)
+static const int EMOJI_W = 26;                      // ikon 16x16 skala 1,5 (24 px, sama tinggi huruf) + 2 px jarak
+static const int EMOJI_Y = TEXT_Y;
 // Posisi dihitung dari waktu (px/detik tetap), bukan langkah per frame: frame lambat tidak membuat tersendat/ngebut
 static const uint16_t SPEED_PPS[3] = {33, 67, 133};  // = 1/2/4 px per 30 ms
 static const uint32_t GAP_MS = 100;  // loop berhenti lebih lama (pop-up, menu, OTA, BLE): lanjut dari posisi terakhir
@@ -136,8 +136,11 @@ static void draw() {
         for (int r = 0; r < 16; r++) {
           const uint8_t *row = &EMOJI_BITMAPS[c - 1][r * 2];
           uint16_t bits = pgm_read_byte(row) << 8 | pgm_read_byte(row + 1);
+          // Skala 1,5: piksel i -> [i*3/2, (i+1)*3/2) (selang-seling 1 dan 2 px)
+          int ya = r * 3 / 2, yh = (r + 1) * 3 / 2 - ya;
           for (int k = 0; k < 16; k++)
-            if (bits & (0x8000 >> k)) display.fillRect(x + k * 2, EMOJI_Y + r * 2, 2, 2, SSD1306_WHITE);
+            if (bits & (0x8000 >> k))
+              display.fillRect(x + k * 3 / 2, EMOJI_Y + ya, (k + 1) * 3 / 2 - k * 3 / 2, yh, SSD1306_WHITE);
         }
       }
     }
