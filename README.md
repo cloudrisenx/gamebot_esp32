@@ -7,6 +7,7 @@ Firmware diperbarui tanpa kabel lewat **OTA WiFi**.
 
 Versi firmware ada di [`src/version.h`](src/version.h) (`FW_VERSION`). Riwayat fitur per versi dan ceklist uji
 di perangkat ada di [`RIWAYAT_PENGEMBANGAN.md`](RIWAYAT_PENGEMBANGAN.md); rencana berikutnya di [`ROADMAP.md`](ROADMAP.md).
+Cara build & upload (firmware biasa dan light sleep): [`BUILD.md`](BUILD.md).
 
 ---
 
