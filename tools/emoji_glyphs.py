@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Sumber ikon emoji running text (8x8, '#' = nyala) -> array C untuk src/emoji_glyphs.h + pratinjau PNG.
+
+  python tools/emoji_glyphs.py            # tulis src/emoji_glyphs.h
+  python tools/emoji_glyphs.py --png x.png  # juga render pratinjau (perlu Pillow)
+
+Kode 0x01.. = urutan di EMOJI. ALIASES = codepoint lain yang memakai ikon yang sama.
+"""
+import sys
+from pathlib import Path
+
+# (nama, codepoint utama, alias, bitmap 8 baris)
+EMOJI = [
+    ("hati", 0x2764, [0x2665, 0x1F496, 0x1F497, 0x1F49E], [
+        "........", ".##..##.", "########", "########", "########", ".######.", "..####..", "...##..."]),
+    ("senyum", 0x1F600, [0x1F603, 0x1F604, 0x1F601, 0x1F60A, 0x263A], [
+        "..####..", ".#....#.", "#.#..#.#", "#......#", "#.#..#.#", "#..##..#", ".#....#.", "..####.."]),
+    ("tawa", 0x1F602, [0x1F639], [
+        "..####..", ".#....#.", "#.#..#.#", "#......#", "#.####.#", "##.##.##", "##....##", "..####.."]),
+    ("cinta", 0x1F60D, [0x1F970, 0x1F618], [
+        "..####..", ".#....#.", "#.#..#.#", "######.#", "#.#..#.#", "#..##..#", ".#....#.", "..####.."]),
+    ("sedih", 0x1F622, [0x1F62D, 0x1F625, 0x1F97A], [
+        "..####..", ".#....#.", "#.#..#.#", "#......#", "##.##..#", "##....##", ".#.##.#.", "..####.."]),
+    ("marah", 0x1F621, [0x1F620, 0x1F92C], [
+        "..####..", ".#....#.", "#.#..#.#", "#..##..#", "#......#", "#.####.#", ".#....#.", "..####.."]),
+    ("jempol", 0x1F44D, [], [
+        "...##...", "...##...", "..##....", "######..", "#######.", "#######.", "######..", "######.."]),
+    ("doa", 0x1F64F, [], [
+        "..#..#..", ".##..##.", ".##..##.", ".##..##.", ".######.", "..####..", "..####..", "..####.."]),
+    ("api", 0x1F525, [], [
+        "...#....", "...##...", "..###.#.", ".####.#.", ".#######", "####.###", "###..###", ".######."]),
+    ("bintang", 0x2B50, [0x1F31F], [
+        "...##...", "...##...", "########", ".######.", "..####..", ".######.", ".##..##.", "##....##"]),
+    ("pesta", 0x1F389, [0x1F38A, 0x1F973], [
+        "#..#.#..", "..#...#.", "#...#...", "...##..#", ".####...", ".####...", "#####...", "####...."]),
+    ("matahari", 0x2600, [0x1F31E], [
+        "#..##..#", ".#....#.", "..####..", "#.####.#", "#.####.#", "..####..", ".#....#.", "#..##..#"]),
+    ("bulan", 0x1F319, [0x1F31B, 0x1F31C], [
+        "..####..", ".###....", "###.....", "###.....", "###.....", "###.....", ".###....", "..####.."]),
+    ("kilau", 0x2728, [0x1F4AB], [
+        "...#....", "...#....", "..###...", "#######.", "..###...", "...#..#.", "...#.###", "......#."]),
+    ("keren", 0x1F60E, [], [
+        "..####..", ".#....#.", "########", "###..###", "#......#", "#.#..#.#", ".#.##.#.", "..####.."]),
+    ("ngakak", 0x1F923, [0x1F606], [
+        "..####..", ".#....#.", "##.##.##", "#......#", "#.####.#", "#.#..#.#", ".#.##.#.", "..####.."]),
+]
+# Di luar tabel: padanan ASCII (selain ini dibuang)
+ASCII_FALLBACK = {0x1F642: ":)", 0x1F609: ";)", 0x1F62E: ":O", 0x1F62F: ":O", 0x1F61B: ":P", 0x1F61C: ";P",
+                  0x1F641: ":(", 0x2639: ":(", 0x1F61E: ":(", 0x1F610: ":|"}
+# Dibuang diam-diam: variation selector, ZWJ, warna kulit
+IGNORED = [0xFE0F, 0xFE0E, 0x200D] + list(range(0x1F3FB, 0x1F400))
+
+
+def rows_to_bytes(rows):
+    assert len(rows) == 8 and all(len(r) == 8 for r in rows), rows
+    return [int(r.replace("#", "1").replace(".", "0"), 2) for r in rows]
+
+
+def emit_header():
+    out = ["// Dibuat oleh tools/emoji_glyphs.py - jangan edit manual.", "#pragma once", "#include <Arduino.h>", "",
+           f"#define EMOJI_COUNT {len(EMOJI)}  // kode 0x01..0x{len(EMOJI):02X} di teks",
+           "static const uint8_t PROGMEM EMOJI_BITMAPS[EMOJI_COUNT][8] = {"]
+    for name, cp, _, rows in EMOJI:
+        out.append("  {" + ", ".join(f"0x{b:02X}" for b in rows_to_bytes(rows)) + f"}},  // {name} U+{cp:04X}")
+    out += ["};", "", "// codepoint -> kode (1..EMOJI_COUNT)", "struct EmojiMap { uint32_t cp; uint8_t code; };",
+            "static const EmojiMap EMOJI_MAP[] = {"]
+    for i, (_, cp, aliases, _) in enumerate(EMOJI, 1):
+        for c in [cp] + aliases:
+            out.append(f"  {{0x{c:X}, {i}}},")
+    out += ["};", "", "struct EmojiAscii { uint32_t cp; const char *text; };", "static const EmojiAscii EMOJI_ASCII[] = {"]
+    for c, t in ASCII_FALLBACK.items():
+        out.append(f'  {{0x{c:X}, "{t}"}},')
+    out += ["};", ""]
+    return "\n".join(out)
+
+
+def render(path):
+    from PIL import Image
+    scale, gap = 3, 4
+    img = Image.new("1", (len(EMOJI) * (8 * scale + gap) + gap, 8 * scale + 2 * gap), 0)
+    for i, (_, _, _, rows) in enumerate(EMOJI):
+        for y, r in enumerate(rows):
+            for x, ch in enumerate(r):
+                if ch == "#":
+                    for dy in range(scale):
+                        for dx in range(scale):
+                            img.putpixel((gap + i * (8 * scale + gap) + x * scale + dx, gap + y * scale + dy), 1)
+    img.resize((img.width * 2, img.height * 2)).save(path)
+
+
+if __name__ == "__main__":
+    root = Path(__file__).resolve().parent.parent
+    (root / "src" / "emoji_glyphs.h").write_text(emit_header(), encoding="utf-8")
+    print("src/emoji_glyphs.h:", len(EMOJI), "emoji")
+    if "--png" in sys.argv:
+        render(sys.argv[sys.argv.index("--png") + 1])

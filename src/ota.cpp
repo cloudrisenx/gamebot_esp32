@@ -248,7 +248,8 @@ static void handleFramesDone() {
 // Teks berjalan (menu Teks): GET -> {"t":"...","max":200}; POST t=... -> simpan
 static void handleTextGet() {
   String json = "{\"t\":\"";
-  for (const char *c = text_get(); *c; c++) {
+  String t = text_getUtf8();
+  for (const char *c = t.c_str(); *c; c++) {
     if (*c == '"' || *c == '\\') json += '\\';
     json += *c;
   }
