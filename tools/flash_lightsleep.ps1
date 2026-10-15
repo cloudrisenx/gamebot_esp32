@@ -31,7 +31,12 @@ Push-Location $repo
 try {
   & $pio run -e lightsleep
   $rc = $LASTEXITCODE
-  git checkout -- web/ota.html  # build menambah byte NUL di akhir file ini
+  # Build menambah byte NUL di akhir web/ota.html: buang NUL saja (bukan git checkout, yang menghapus editan belum di-commit)
+  $html = Join-Path $repo 'web\ota.html'
+  $bytes = [IO.File]::ReadAllBytes($html)
+  $n = $bytes.Length
+  while ($n -gt 0 -and $bytes[$n - 1] -eq 0) { $n-- }
+  if ($n -lt $bytes.Length) { [IO.File]::WriteAllBytes($html, $bytes[0..($n - 1)]) }
 } finally {
   Pop-Location
   $env:PLATFORMIO_CORE_DIR = $oldCore

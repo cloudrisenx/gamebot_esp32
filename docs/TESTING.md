@@ -97,7 +97,7 @@ spaces, a separate core. DO NOT use the VS Code Build/Upload buttons for this en
 cd G:\esp32_c3\ESP32
 $env:PLATFORMIO_CORE_DIR = 'G:\esp32_c3\ESP32\.pio_lightsleep'
 pio run -e lightsleep
-git checkout -- web/ota.html   # the build appends a NUL byte to this file
+# the build appends a NUL byte to web/ota.html: remove that byte (do not git checkout: it wipes uncommitted edits)
 ```
 
 Changing `custom_sdkconfig`? Delete `sdkconfig.lightsleep` first (otherwise the old values are used). Never run
