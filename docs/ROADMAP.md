@@ -6,7 +6,6 @@ Plans that are **not** done yet, with their status and reasons. Finished work is
 | Plan | Status | Notes |
 |---|---|---|
 | Light sleep + BLE (more power-efficient "keep notifications") | Done in the light sleep firmware; still being tested on the device | Uses pioarduino (Arduino 3.x / ESP-IDF 5.x); see [TESTING.md](TESTING.md) |
-| Virtual pet in the main menu | Planned | Fits in memory |
 | Running text over Bluetooth | Optional extra | Currently set over WiFi (Text tab on the OTA page, or hold OK on the Text screen) |
 | Song lyrics | Not possible | The phone sends no lyrics data |
 
@@ -27,14 +26,6 @@ and the watch wakes on a WhatsApp notification or a button.
 - Buttons have to wake the chip through a GPIO level (`gpio_wakeup_enable`), because edge interrupts do not run during sleep.
 - Status: BLE disappearing during light sleep was seen once and could not be reproduced later. **Settings → Power save**
   (Normal / DFS / Light sleep) exists to test it and as a fallback.
-
-## Virtual pet
-
-A small pet in the main menu: hatches from an egg the first time, needs feeding, grows up over 7 days,
-and has expressions and moods.
-
-- Memory is enough: the app slot is now 1.75 MB with ±25–30% free. 1-bit sprites are small (±0.5–1 KB per expression).
-- The pet's time has to keep running while the watch sleeps (needs a valid clock and NVS storage).
 
 ## Running text over Bluetooth
 
