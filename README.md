@@ -1,188 +1,203 @@
 # Project Lucu Lucuan
 
-Firmware jam pintar buatan sendiri berbasis **ESP32-C3** dengan layar **OLED 128x64**: menampilkan jam,
-notifikasi WhatsApp, musik, cuaca, dan navigasi Google Maps dari HP (Android lewat aplikasi **Chronos**,
-atau iPhone lewat Bluetooth bawaan), ditambah animasi, remote kamera, dan 7 game (beberapa bisa 2 pemain).
-Firmware diperbarui tanpa kabel lewat **OTA WiFi**.
+Home-made smartwatch firmware for the **ESP32-C3** with a **128x64 OLED**: shows the time, WhatsApp
+notifications, music, weather and Google Maps navigation from your phone (Android through the **Chronos** app,
+or iPhone through built-in Bluetooth), plus animations, a camera remote and 7 games (some for 2 players).
+Firmware is updated wirelessly over **WiFi OTA**. The on-screen language can be **Indonesian or English**.
 
-Versi firmware ada di [`src/version.h`](src/version.h) (`FW_VERSION`). Riwayat fitur per versi dan ceklist uji
-di perangkat ada di [`RIWAYAT_PENGEMBANGAN.md`](RIWAYAT_PENGEMBANGAN.md); rencana berikutnya di [`ROADMAP.md`](ROADMAP.md).
-Cara build & upload (firmware biasa dan light sleep): [`BUILD.md`](BUILD.md).
+The firmware version lives in [`src/version.h`](src/version.h) (`FW_VERSION`). Feature history per version and the
+on-device test checklist are in [`CHANGELOG.md`](docs/CHANGELOG.md); planned work is in [`ROADMAP.md`](docs/ROADMAP.md).
+How to build & upload (normal and light sleep firmware): [`BUILD.md`](docs/BUILD.md).
+Much of the code was written together with Claude (Anthropic): [`ACKNOWLEDGEMENTS.md`](docs/ACKNOWLEDGEMENTS.md).
 
 ---
 
-## Perangkat keras
+## Hardware
 
-| Komponen | Detail |
+| Part | Details |
 |---|---|
-| Mikrokontroler | ESP32-C3 (board `esp32-c3-devkitm-1`), CPU 80 MHz, flash 4 MB |
-| Layar | OLED SSD1306 128x64, I2C alamat `0x3C`, SDA = GPIO 4, SCL = GPIO 5 |
-| Tombol | 4 tombol aktif LOW (pull-up internal), urutan fisik kiri → kanan: **L (kiri)** = GPIO 3, **R (kanan)** = GPIO 1, **OK** = GPIO 10, **BACK** = GPIO 6 |
-| Bangun dari deep sleep | tombol L / R |
+| Microcontroller | ESP32-C3 (board `esp32-c3-devkitm-1`), 80 MHz CPU, 4 MB flash |
+| Display | SSD1306 OLED 128x64, I2C address `0x3C`, SDA = GPIO 4, SCL = GPIO 5 |
+| Buttons | 4 active-LOW buttons (internal pull-up), physical order left → right: **L (left)** = GPIO 3, **R (right)** = GPIO 1, **OK** = GPIO 10, **BACK** = GPIO 6 |
+| Wake from deep sleep | L / R button |
 
-Arah L/R dapat dibalik lewat `MENU_SWAP_LR` / `PORTRAIT_SWAP_LR` di [`src/screen.h`](src/screen.h).
-Catatan untuk kode: di [`src/buttons.h`](src/buttons.h) tombol L/R masih bernama `BTN_UP` / `BTN_DOWN`
-(nama lama), dan konstanta deep sleep `WAKE_PIN_UP` / `WAKE_PIN_DOWN`.
+L/R can be swapped with `MENU_SWAP_LR` / `PORTRAIT_SWAP_LR` in [`src/screen.h`](src/screen.h).
+Code note: in [`src/buttons.h`](src/buttons.h) the L/R buttons still use their old names `BTN_UP` / `BTN_DOWN`,
+and the deep sleep constants are `WAKE_PIN_UP` / `WAKE_PIN_DOWN`.
 
-## Perangkat lunak yang dipakai
+## Software used
 
-| Kategori | Yang dipakai |
+| Category | What |
 |---|---|
-| Build | [PlatformIO](https://platformio.org/) (VS Code), platform `espressif32`, framework **Arduino** (core 2.0.x) |
-| Grafik OLED | Adafruit SSD1306 2.5.17, Adafruit GFX Library 1.12.6, Adafruit BusIO 1.17.4 |
-| Bluetooth HP (Android) | ChronosESP32 1.9.1 (protokol aplikasi Chronos) |
-| Bluetooth (stack) | NimBLE-Arduino 2.5.1 (dipakai Chronos, mode iPhone, dan remote kamera HID) |
-| Jam sistem | ESP32Time 2.0.6 |
-| QR code (halaman OTA) | QRCode 0.0.1 |
-| Aplikasi HP | **Chronos** (Android) — notifikasi, jam, cuaca, musik, navigasi; iPhone: tanpa aplikasi (ANCS/AMS/CTS) |
-| Skrip bantu | Python 3 (`scripts/copy_ota.py`, `tools/make_frames.py`), Node.js (`tools/test_web_converter.mjs`) |
-| Peta kode | [graphify](https://github.com/Graphify-Labs/graphify) → folder `graphify-out/` (lihat di bawah) |
+| Build | [PlatformIO](https://platformio.org/) (VS Code), platform `espressif32`, **Arduino** framework (core 2.0.x; the light sleep build uses Arduino 3.x / pioarduino) |
+| OLED graphics | Adafruit SSD1306 2.5.17, Adafruit GFX Library 1.12.6, Adafruit BusIO 1.17.4 |
+| Phone Bluetooth (Android) | ChronosESP32 1.9.1 (Chronos app protocol) |
+| Bluetooth stack | NimBLE-Arduino 2.5.1 (used by Chronos, iPhone mode and the HID camera remote) |
+| System clock | ESP32Time 2.0.6 |
+| QR code (OTA screen) | QRCode 0.0.1 |
+| Phone app | **Chronos** (Android): notifications, time, weather, music, navigation. iPhone: no app needed (ANCS/AMS/CTS) |
+| Helper scripts | Python 3 (`tools/copy_ota.py`, `tools/make_frames.py`), Node.js (`tools/test_web_converter.mjs`) |
+| Code map | [graphify](https://github.com/Graphify-Labs/graphify) → `graphify-out/` folder (see below) |
 
-Library dipasang otomatis oleh PlatformIO dari `lib_deps` di [`platformio.ini`](platformio.ini).
+Libraries are installed automatically by PlatformIO from `lib_deps` in [`platformio.ini`](platformio.ini).
 
-## Fitur
+## Features
 
-**Beranda & jam**
-- Jam besar, tanggal, status BT + baterai HP, jumlah notifikasi belum dibaca, cuaca / navigasi aktif.
-- Tombol: L = Notifikasi, R = Animasi, OK = Menu, BACK = layar mati.
-- Jam disinkron dari HP (Chronos / iPhone CTS) setiap tersambung; **Setting > Jam**: Sync HP sekarang atau atur manual.
-- Jam & cuaca terakhir disimpan: setelah mati/restart jam tampil sebagai perkiraan (tanda `~`), bukan `--:--`.
+**Home & clock**
+- Large clock, date, BT status + phone battery, unread notification count, weather / active navigation.
+- Buttons: L = Notifications, R = Animation (▶ icon; **hold R** = Music), OK = Menu, BACK = screen off.
+- Time is synced from the phone (Chronos / iPhone CTS) on every connection; **Settings > Clock**: sync now or set manually.
+- Last time & weather are saved: after power loss/restart the clock shows an estimate (marked `~`) instead of `--:--`.
 
-**HP**
-- Notifikasi: pop-up WhatsApp (atau semua aplikasi), riwayat 10 notifikasi, pesan panjang bergulir.
-- Panggilan masuk (nama penelepon); iPhone: angkat/tolak.
-- Musik: judul/artis; OK = putar/jeda, ketuk kiri/kanan = volume -/+, tahan kiri/kanan = lagu sebelumnya/berikutnya.
-- Cuaca (Android), navigasi Google Maps belok-demi-belok (Android).
-- Remote kamera (Bluetooth HID "Volume Up") dengan timer.
+**Phone**
+- Notifications: WhatsApp pop-up (or all apps), history of 10 notifications, long messages scroll.
+- Incoming calls (caller name); on iPhone: answer/reject.
+- Music: title/artist; left = previous song, right = next, OK = play/pause, BACK = back; hold left/right = volume -/+.
+- Weather (Android), turn-by-turn Google Maps navigation (Android).
+- Camera remote (Bluetooth HID "Volume Up") with a timer.
+- **Phone mode** (Android / iPhone) is set in Menu → Phone. iPhone mode hides Navigation and Weather (iPhone does not send that data).
 
-**Animasi** — animasi boot & menu dari partisi `frames` (format FRM1/FRM2 terkompresi), dibuat dengan
-`tools/make_frames.py` dari GIF / PNG / frame lama, diunggah lewat halaman OTA.
+**Animation**: boot & menu animation from the `frames` partition (FRM1 / compressed FRM2), made with
+`tools/make_frames.py` from GIF / PNG / old frame headers, or uploaded from the OTA page. On the Animation screen:
+OK = pause, left/right = speed, **hold OK** = WiFi menu (turn OTA on, then send an animation from your phone; it plays
+from the start right away), BACK = exit (OTA off).
 
-**Teks** — running text besar di menu utama (kiri/kanan = kecepatan, OK = jeda). Isi teks (maks 200 karakter,
-huruf/angka/tanda baca biasa; emoji tidak bisa karena font OLED hanya ASCII) diatur lewat halaman OTA, tab **Teks**.
-**Tahan OK** = menu WiFi: Hidupkan OTA (teks tetap berjalan, ubah dari HP langsung tampil; Bluetooth mati selama OTA),
-BACK kembali ke teks. Keluar dari Teks = OTA mati.
+**Text**: big running text in the main menu (left/right = speed, OK = pause). The text (max 200 characters,
+plain letters/digits/punctuation; emoji are not possible because the OLED font is ASCII only) is set on the OTA page,
+**Text** tab. **Hold OK** = WiFi menu: turn OTA on (the text keeps running and changes from the phone show up
+immediately; Bluetooth is off while OTA is on), BACK returns to the text. Leaving Text turns OTA off.
 
-**Game** (menu Game, hi-score tersimpan)
+**Games** (Game menu, hi-scores are saved)
 | Game | Mode |
 |---|---|
 | Breakout | 1P |
-| Duel (adu refleks "DOR!") | 1P vs CPU / 2P — pemenang ditentukan stempel waktu interrupt (µs) |
+| Duel (reflex "BANG!" duel) | 1P vs CPU / 2P, winner decided by interrupt timestamps (µs) |
 | Dino Run | 1P |
-| Hitung (hitung benda sekilas) | 1P vs CPU / 2P serentak — level 1–5, waktu & jumlah pengecoh bisa diatur |
+| Math (count the objects at a glance) | 1P vs CPU / 2P at once, levels 1–5, time & number of decoys adjustable |
 | Flappy | 1P |
-| Pong | 1P vs CPU / 2P potret — smash: kiri + kanan bersamaan |
+| Pong | 1P vs CPU / 2P portrait, smash: left + right together |
 | XO (tic-tac-toe) | 1P vs CPU / 2P |
 
-Pop-up WhatsApp ditahan selama di menu Game (tetap masuk riwayat); panggilan tetap tampil.
+WhatsApp pop-ups are held while in the Game menu (they still go into the history); calls are still shown.
 
-**Daya**
-- Layar redup lalu mati otomatis; BACK di Beranda = layar mati.
-- Layar mati = **light sleep + BLE** (branch lightsleep): BLE tetap tersambung, tombol/notifikasi membangunkan
-  seketika, parameter koneksi BLE dilonggarkan. Tidak ada deep sleep otomatis selain jadwal Malam.
-- Jadwal **Malam**: deep sleep total di jam yang diatur sendiri, bangun otomatis di jam selesai.
+**Power**
+- The screen dims, then turns off automatically; BACK on Home = screen off.
+- Screen off = **light sleep + BLE** (light sleep firmware): BLE stays connected, buttons/notifications wake it
+  instantly, BLE connection parameters are relaxed. **Settings > Power save**: Normal / DFS / Light sleep.
+- **Night** schedule: full deep sleep at the hours you set, wakes up automatically at the end time.
 
-**Setting** — notif pop-up, Bluetooth on/off, restart Bluetooth, mode HP (Android/iPhone), jam, layar mati,
-auto sleep, malam, kecerahan, **OLED I2C** (800/400/200 kHz) & **Uji OLED** (pola uji + statistik error I2C),
-animasi boot, reset hi-score, tidur sekarang, **Restart**, **Mode flash** (reboot ke mode download untuk flash USB tanpa tombol BOOT), **Reset data** (hapus semua setting, hi-score,
-jam tersimpan, teks, dan pairing; animasi tetap), update OTA, panduan iPhone, hapus pairing, info.
+**Settings**: notification pop-up, Bluetooth on/off, restart Bluetooth, clock, **language** (Indonesian / English),
+screen timeout, power save, night, brightness, **OLED I2C** (800/400/200 kHz) & **OLED test** (test pattern + I2C error
+stats), boot animation, reset hi-scores, sleep now, **Restart**, **Flash mode** (reboots into download mode for USB
+flashing without the BOOT button), **Reset data** (erases all settings, hi-scores, saved time, text and pairing;
+the animation stays), OTA update, iPhone guide, remove pairing, info.
 
-**Update OTA** — Setting > Update OTA menyalakan WiFi AP `cute_device_OTA`; sambungkan HP lalu buka
-`http://192.168.4.1` (atau pindai QR di layar) untuk mengunggah `firmware_ota.bin` atau `frames.bin`,
-dan mengubah isi running text (tab Teks). Tab **Perangkat** mengatur nama device (teks di jam), nama
-Bluetooth (Android/Chronos/iPhone; Remote = nama + " Remote"), nama WiFi OTA, dan password WiFi OTA (8-63 karakter);
-berlaku setelah restart, kosongkan nama = kembali ke `cute_device`. **Reset data** mengembalikan semuanya ke bawaan.
+**OTA update**: Settings > OTA update starts the WiFi AP `cute_device_OTA`; connect your phone and open
+`http://192.168.4.1` (or scan the QR code on screen) to upload `firmware_ota.bin` or `frames.bin`
+and change the running text (Text tab). The **Device** tab sets the device name (shown on the watch), the
+Bluetooth name (Android/Chronos/iPhone; the remote is name + " Remote"), the OTA WiFi name and OTA WiFi password
+(8–63 characters); changes apply after a restart, and an empty name means back to `cute_device`. **Reset data**
+restores all of them to the defaults. (The OTA web page itself is in Indonesian.)
 
-## Cara pakai di Android
+## Using it with Android
 
-1. Pasang aplikasi **Chronos** dari Play Store.
-2. Di jam: **Menu → HP → Mode HP → Android** (bawaan) dan **Setting → Bluetooth → ON**.
-3. Buka Chronos → tambah jam / scan → pilih **cute_device**. Setelah tersambung, pojok kanan atas jam berubah
-   dari `bt` menjadi `BT` (+ baterai HP) dan jam di Beranda langsung sinkron.
-4. Beri izin yang diminta Chronos, terutama **akses notifikasi**, lalu di Chronos aktifkan notifikasi untuk
-   **WhatsApp** (dan aplikasi lain bila ingin).
-5. Pilih jenis pop-up di jam: **Setting → Notif pop-up** = WhatsApp / Semua / OFF.
-6. Opsional di Chronos: aktifkan **cuaca** (muncul di Beranda dan HP → Cuaca) dan **navigasi** (rute Google
-   Maps tampil di menu Navigasi).
-7. Agar tetap tersambung di latar belakang, matikan penghemat baterai untuk Chronos di pengaturan Android.
+1. Install the **Chronos** app from the Play Store.
+2. On the watch: **Menu → Phone → Phone mode → Android** (default) and **Settings → Bluetooth → ON**.
+3. Open Chronos → add watch / scan → pick **cute_device**. Once connected, the top-right corner of the watch changes
+   from `bt` to `BT` (+ phone battery) and the clock on Home syncs right away.
+4. Grant the permissions Chronos asks for, especially **notification access**, then enable notifications for
+   **WhatsApp** (and other apps if you like) in Chronos.
+5. Choose the pop-up type on the watch: **Settings → Notif pop-up** = WhatsApp / All / OFF.
+6. Optional in Chronos: enable **weather** (shown on Home and in Phone → Weather) and **navigation** (Google Maps
+   routes show in the Navigation menu).
+7. To stay connected in the background, turn off battery optimisation for Chronos in Android settings.
 
-Jam tidak tersinkron? **Setting → Jam → Sync HP**, atau **Setting → Restart BT**.
+Clock not synced? **Settings → Clock → Phone sync**, or **Settings → Restart BT**.
 
-## Cara pakai di iPhone
+## Using it with iPhone
 
-Tidak perlu aplikasi (memakai Bluetooth bawaan iOS: notifikasi, musik, jam). Ringkas:
+No app needed (uses iOS built-in Bluetooth: notifications, music, time). In short:
 
-1. Di jam: **Menu → HP → Mode HP → iPhone** (OK mengganti mode; panduan di Setting → Panduan iPhone). Mode iPhone menyembunyikan Navigasi dan Cuaca (iPhone tidak mengirim datanya).
-2. Di iPhone: **Pengaturan → Bluetooth → cute_device → Pasangkan**, lalu **Izinkan** "Bagikan Notifikasi Sistem".
-3. Agar isi pesan WhatsApp ikut tampil: **Pengaturan → Notifikasi → WhatsApp → Tampilkan Pratinjau → Selalu**.
+1. On the watch: **Menu → Phone → Phone mode → iPhone** (OK switches the mode; guide in Settings → iPhone guide).
+2. On the iPhone: **Settings → Bluetooth → cute_device → Pair**, then **Allow** "Share System Notifications".
+3. To see WhatsApp message text: **Settings → Notifications → WhatsApp → Show Previews → Always**.
 
-Panggilan dapat diangkat (OK) / ditolak (BACK) dari jam. **Cuaca dan navigasi hanya tersedia di Android.**
-Langkah lengkap, ganti HP, dan pemecahan masalah: [`PANDUAN_IPHONE.md`](PANDUAN_IPHONE.md).
+Calls can be answered (OK) / rejected (BACK) from the watch. **Weather and navigation are Android only.**
+Full steps, changing phones and troubleshooting: [`IPHONE_GUIDE.md`](docs/IPHONE_GUIDE.md).
 
-## Cara ganti animasi
+## Changing the animation
 
-Animasi disimpan di partisi `frames` dan diganti **tanpa kabel**, langsung dari browser HP:
+The animation lives in the `frames` partition and is replaced **without a cable**, straight from your phone's browser:
 
-1. Di jam: **Setting → Update OTA**. Jam menyalakan WiFi **cute_device_OTA**; password tampil di layar
-   (atau pindai QR WiFi di layar).
-2. Sambungkan HP ke WiFi itu, lalu buka **http://192.168.4.1** (biasanya terbuka sendiri; atau pindai QR kedua).
-3. Tab **Animasi** → pilih file: **GIF**, **video** (MP4/WebM/MOV), **gambar** (PNG/JPG/BMP), atau **frames.bin**.
-4. Atur sebelum kirim:
-   - Video: tentukan **Mulai / Selesai** (tombol "di sini" saat memutar), lalu **Ambil frame**.
-   - **Kecepatan** (fps), **Ambang** (batas hitam/putih), **Orientasi** (Landscape 128x64 / Potret 64x128),
-     **Ukuran** (Pas dengan bingkai hitam / Penuh dipotong / Tarik).
-   - Pratinjau menampilkan jumlah frame, durasi, dan **% kapasitas** setelah kompresi. Bila lebih dari 100%,
-     pendekkan klip, turunkan fps, atau matikan dither.
-5. Tekan **Kirim animasi**. Setelah selesai, animasi baru dipakai di menu **Animasi** dan animasi boot
-   (**Setting → Animasi boot** untuk menyalakan/mematikan saat menyala).
+1. On the watch: **Settings → OTA update** (or hold OK on the Animation screen). The watch starts the WiFi
+   **cute_device_OTA**; the password is shown on screen (or scan the WiFi QR code on screen).
+2. Connect your phone to that WiFi, then open **http://192.168.4.1** (usually opens by itself; or scan the second QR code).
+3. **Animasi** tab → choose a file: **GIF**, **video** (MP4/WebM/MOV), **image** (PNG/JPG/BMP), or **frames.bin**.
+4. Adjust before sending:
+   - Video: set **Start / End** (the "here" buttons while playing), then **Grab frames**.
+   - **Speed** (fps), **Threshold** (black/white cut-off), **Orientation** (landscape 128x64 / portrait 64x128),
+     **Size** (fit with black borders / fill and crop / stretch).
+   - The preview shows the frame count, duration and **% of capacity** after compression. Above 100%,
+     shorten the clip, lower the fps or turn off dithering.
+5. Press **Send animation**. When done, the new animation is used in the **Animation** menu and as the boot
+   animation (**Settings → Boot animation** turns it on/off at power-up).
 
-Alternatif dari komputer: buat `frames.bin` dengan skrip, lalu unggah file itu di tab Animasi yang sama.
+From a computer: make a `frames.bin` with the script, then upload that file in the same Animasi tab, or flash it.
 
 ```bash
-python tools/make_frames.py kucing.gif -o frames.bin --dither          # dari GIF
-python tools/make_frames.py folder_png/ -o frames.bin --fps 12          # dari folder gambar
-python tools/make_frames.py video_tegak.gif -o frames.bin --portrait    # potret 64x128
+python tools/make_frames.py cat.gif -o frames.bin --dither              # from a GIF
+python tools/make_frames.py png_folder/ -o frames.bin --fps 12          # from a folder of images
+python tools/make_frames.py portrait.gif -o frames.bin --portrait       # portrait 64x128
+python tools/make_frames.py tools/legacy_frames/VideoFrame_R4.h -o frames.bin --invert  # one .h with many frames
 ```
 
 ## Build & update
 
+Full details (normal & light sleep firmware): [`docs/BUILD.md`](docs/BUILD.md).
+
 ```bash
-# build (hasil siap OTA disalin otomatis ke firmware_ota.bin oleh scripts/copy_ota.py)
+# normal firmware (VS Code Build button); OTA file: firmware/firmware_ota.bin
 pio run
 
-# uji konverter animasi halaman web
+# light sleep firmware (the one in use); output: firmware/lightsleep/firmware.bin
+powershell -ExecutionPolicy Bypass -File tools/flash_lightsleep.ps1 -NoFlash
+
+# test the web page animation converter
 node tools/test_web_converter.mjs
-
-# buat animasi
-python tools/make_frames.py kucing.gif -o frames.bin --dither
 ```
 
-Pemasangan pertama lewat USB (`pio run -t upload`); setelahnya cukup OTA. Build gagal bila firmware melebihi
-slot OTA (`app0` 1,5 MB di [`partitions.csv`](partitions.csv)).
+The first install is over USB; after that OTA is enough. The build fails if the firmware is larger than the
+OTA slot (`app0` 1.75 MB in [`partitions.csv`](partitions.csv)).
 
-| Partisi | Ukuran | Isi |
+| Partition | Size | Contents |
 |---|---|---|
-| nvs | 20 KB | setting, hi-score, jam & cuaca tersimpan, pairing |
-| app0 / app1 | 1,5 MB × 2 | firmware (OTA bergantian) |
-| frames | 896 KB | animasi |
-| coredump | 64 KB | jejak crash |
+| nvs | 20 KB | settings, hi-scores, saved time & weather, pairing |
+| app0 / app1 | 1.75 MB × 2 | firmware (OTA alternates) |
+| frames | 384 KB | animation (compressed FRM2) |
+| coredump | 64 KB | crash trace |
 
-## Struktur folder
+## Folder layout
 
 ```
-src/            kode firmware (main, menu, ble_link, ios_link, power, clockstore, game_*.cpp, ...)
-web/ota.html    halaman upload OTA (ditanam ke firmware)
-scripts/        skrip build PlatformIO (copy_ota.py)
-tools/          make_frames.py, test_web_converter.mjs, legacy_frames/ (frame animasi lama)
-graphify-out/   peta kode (graph.html, GRAPH_REPORT.md, graph.json) dari graphify
-PANDUAN_IPHONE.md        cara pairing iPhone
-RIWAYAT_PENGEMBANGAN.md  riwayat fitur per versi + ceklist uji perangkat
+README.md       start here
+docs/           BUILD.md (build & upload), TESTING.md (light sleep tests), IPHONE_GUIDE.md,
+                CHANGELOG.md (history + test checklist), ROADMAP.md, ACKNOWLEDGEMENTS.md
+src/            firmware code (main, menu, ble_link, ios_link, power, clockstore, lang.h, game_*.cpp, ...)
+web/ota.html    OTA upload page (embedded in the firmware)
+tools/          flash_lightsleep.ps1, copy_ota.py (called by PlatformIO), make_frames.py,
+                test_web_converter.mjs, legacy_frames/ (old animation frames)
+firmware/       ready-to-use build output (not committed): firmware_ota.bin, lightsleep/, frames*.bin
+backup/         old firmware to roll back to (not committed)
+platformio.ini  normal env + lightsleep env;  partitions.csv  partition table
+graphify-out/   code map (graph.html, GRAPH_REPORT.md, graph.json) from graphify
 ```
+Other folders are generated automatically, just ignore them: `.pio/`, `.pio_lightsleep/` (light sleep PlatformIO),
+`.dummy/`, `sdkconfig.*`, `include/`, `lib/`, `test/` (empty PlatformIO defaults).
 
-## Peta kode (graphify)
+## Code map (graphify)
 
-`graphify-out/graph.html` dapat dibuka di browser untuk melihat hubungan fungsi antar file; ringkasannya di
-`graphify-out/GRAPH_REPORT.md`. Perbarui setelah mengubah kode (hanya memproses `src/`, sesuai `.graphifyignore`):
+Open `graphify-out/graph.html` in a browser to see how functions connect across files; the summary is in
+`graphify-out/GRAPH_REPORT.md`. Refresh it after changing code (it only processes `src/`, per `.graphifyignore`):
 
 ```bash
 graphify update .
