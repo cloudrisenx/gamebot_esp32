@@ -124,6 +124,8 @@ bool cts_parse(const uint8_t *d, size_t n, int &year, int &month, int &day, int 
 static portMUX_TYPE iosMux = portMUX_INITIALIZER_UNLOCKED;
 static bool running = false;
 static volatile bool linkUp = false, encrypted = false, setupPending = false, ready = false;
+static volatile uint32_t linkUpAt = 0;          // millis() saat tersambung, untuk batas waktu pairing
+static const uint32_t PAIR_TIMEOUT_MS = 60000;  // tersambung tapi belum siap selama ini -> putus, iPhone coba lagi
 static volatile uint16_t connHandle = 0;
 static NimBLEServer *server = nullptr;
 static NimBLERemoteCharacteristic *ancsControl = nullptr, *amsCommand = nullptr;
@@ -208,6 +210,7 @@ static void onBattery(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) 
 class IosServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *, NimBLEConnInfo &info) override {
     connHandle = info.getConnHandle();
+    linkUpAt = millis();
     linkUp = true;
     Serial.printf("[iOS] terhubung %s handle=%u, bonded=%d | layar %s, light sleep %s\n",
                   info.getAddress().toString().c_str(), info.getConnHandle(), info.isBonded(),
@@ -233,7 +236,9 @@ class IosServerCallbacks : public NimBLEServerCallbacks {
       encrypted = true;
       setupPending = true;  // discovery GATT dilakukan di loop (blocking, jangan di task BLE)
     } else {
-      Serial.println("[iOS] pairing gagal / tidak terenkripsi");
+      // Jangan biarkan link tak terenkripsi menggantung (iPhone berputar "Connecting" terus): putus
+      Serial.println("[iOS] pairing gagal / tidak terenkripsi, memutus koneksi");
+      server->disconnect(info.getConnHandle());
     }
   }
 };
@@ -513,6 +518,8 @@ bool ios_running() { return running; }
 
 bool ios_connected() { return running && linkUp && encrypted; }
 
+bool ios_pairing() { return running && linkUp && !ready; }
+
 void ios_loop() {
   if (!running) return;
   if (setupPending && linkUp) {
@@ -527,7 +534,14 @@ void ios_loop() {
     portEXIT_CRITICAL(&iosMux);
     applyTime(d, sizeof(d));
   }
-  if (!ready) return;
+  if (!ready) {
+    if (linkUp && millis() - linkUpAt > PAIR_TIMEOUT_MS) {
+      Serial.println("[iOS] pairing/setup tidak selesai 60 dtk, memutus koneksi");
+      linkUpAt = millis();  // jangan kirim disconnect berulang sebelum onDisconnect datang
+      server->disconnect(connHandle);
+    }
+    return;
+  }
   processNotificationSource();
   processDataSource();
   sendNextAttrRequest();

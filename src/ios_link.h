@@ -11,6 +11,7 @@ void ios_begin();
 void ios_stop();
 bool ios_running();
 bool ios_connected();
+bool ios_pairing();  // tersambung tapi belum siap (pairing / cari layanan)
 bool ios_readTime();
 // Minta iPhone mengubah parameter koneksi (unit 1,25 ms / 10 ms); false bila tidak tersambung
 bool ios_updateConnParams(uint16_t minItv, uint16_t maxItv, uint16_t latency, uint16_t timeout);    // baca ulang jam (CTS); false bila tidak tersambung  // terhubung & terenkripsi (sudah di-pair)

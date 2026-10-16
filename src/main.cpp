@@ -15,6 +15,7 @@
 #include "settings.h"
 #include "ble_link.h"
 #include "remote_hid.h"
+#include "ios_link.h"
 #include "clockstore.h"
 #include "menu.h"
 #include "games.h"
@@ -306,8 +307,9 @@ static void loopBody() {
                          : PR_NONE;
   power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA);
   // Layar mati = selalu light sleep + BLE; deep sleep otomatis hanya jadwal Malam (power_update)
+  // Saat pairing iPhone jangan light sleep: pairing + cari layanan bisa 10-30 dtk dan gagal bila chip tidur
   power_lightSleep(!power_screenOn() && keepAwake == PR_NONE && !popupActive && !callShown && !gamePlaying &&
-                   state != ST_OTA);
+                   state != ST_OTA && !ios_pairing());
 
   // Layar baru menyala lagi: isi buffer saat mati tidak dikirim, jadi gambar ulang semuanya
   if (power_takeScreenWoke()) {

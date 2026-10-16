@@ -196,6 +196,13 @@ After the rename (note in the tests):
 - [ ] Dino past a score of 1500: obstacles still appear.
 - [ ] OLED 800 kHz: no random lines/flicker (if there are, choose 400 kHz in Settings > OLED I2C).
 
+## 6. v1.9.36: iPhone pairing no longer hangs on "Connecting"
+
+- [x] Failed pairing (link not encrypted) now disconnects instead of leaving the iPhone spinning.
+- [x] Light sleep is held off while an iPhone is connected but not ready yet (pairing + service discovery).
+- [x] If pairing/setup does not finish within 60 s, the watch disconnects so the iPhone can retry.
+- [ ] Test on the iPhone 13: Forget phones on the watch, Forget This Device on the iPhone, pair with the screen off.
+
 ---
 
 Note: the full iPhone user guide is in [`IPHONE_GUIDE.md`](IPHONE_GUIDE.md).
