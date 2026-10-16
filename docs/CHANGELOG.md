@@ -118,6 +118,7 @@ After the rename (note in the tests):
 - [ ] (Optional) measure the current with a USB power meter.
 
 **Other:**
+- [ ] iPhone diagnostics v1.9.35: Serial shows `[iOS] terhubung ...`, `[iOS] auth selesai: encrypted=.. bonded=..`, `[iOS] terputus alasan=.. (HCI 0x.. ...)` with screen/light sleep state, to find why pairing spins forever.
 - [ ] Text emoji v1.9.34: back to the hand-drawn 8x8 icons from v1.9.31 (the 16x16 versions of v1.9.32/v1.9.33 were dropped).
 - [ ] Text emoji v1.9.33: faces drawn as outlines (white outline + eyes/mouth, black inside), icons 24 px = same height as the letters; other icons stay filled.
 - [ ] Text emoji v1.9.32: icons are 16x16 drawn at 2x (32 px, a bit taller than the letters), made from the Windows emoji font; faces show eyes/mouth and are easy to tell apart; scrolling stays smooth.

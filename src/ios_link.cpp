@@ -209,6 +209,9 @@ class IosServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *, NimBLEConnInfo &info) override {
     connHandle = info.getConnHandle();
     linkUp = true;
+    Serial.printf("[iOS] terhubung %s handle=%u, bonded=%d | layar %s, light sleep %s\n",
+                  info.getAddress().toString().c_str(), info.getConnHandle(), info.isBonded(),
+                  power_screenOn() ? "ON" : "OFF", power_lightSleepActive() ? "aktif" : "ditahan");
     // ANCS/AMS hanya bisa diakses setelah link terenkripsi: minta pairing/enkripsi
     NimBLEDevice::startSecurity(info.getConnHandle());
   }
@@ -216,9 +219,16 @@ class IosServerCallbacks : public NimBLEServerCallbacks {
     linkUp = encrypted = setupPending = ready = false;
     ancsControl = amsCommand = nullptr;
     ble_setRinging(nullptr, false);
-    Serial.printf("[iOS] terputus (alasan %d), advertising lagi\n", reason);
+    // NimBLE: alasan = 0x200 + kode HCI
+    int hci = reason & 0xFF;
+    const char *why = hci == 0x13 ? "HP memutus" : hci == 0x08 ? "timeout (sinyal/jam tidur)" : hci == 0x3D ? "MIC failure (kunci salah)"
+                      : hci == 0x05 ? "auth failure (pairing ditolak)" : hci == 0x16 ? "diputus jam" : hci == 0x3E ? "gagal membuka koneksi" : "lain";
+    Serial.printf("[iOS] terputus alasan=%d (HCI 0x%02X %s) | layar %s, light sleep %s, advertising lagi\n", reason, hci, why,
+                  power_screenOn() ? "ON" : "OFF", power_lightSleepActive() ? "aktif" : "ditahan");
   }
   void onAuthenticationComplete(NimBLEConnInfo &info) override {
+    Serial.printf("[iOS] auth selesai: encrypted=%d bonded=%d authenticated=%d keysize=%u\n", info.isEncrypted(),
+                  info.isBonded(), info.isAuthenticated(), info.getSecKeySize());
     if (info.isEncrypted()) {
       encrypted = true;
       setupPending = true;  // discovery GATT dilakukan di loop (blocking, jangan di task BLE)
