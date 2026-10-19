@@ -269,6 +269,7 @@ void ble_begin() {
   watch.setNotificationCallback(onNotification);
   watch.setConfigurationCallback(onConfig);
   watch.setRingerCallback(onRinger);
+  watch.setDataQueuedCallback(power_loopWake);  // paket diproses di watch.loop(): bangunkan loop seketika
   loadWeatherCache();
 }
 

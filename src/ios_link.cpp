@@ -135,6 +135,10 @@ static NimBLERemoteCharacteristic *ancsControl = nullptr, *amsCommand = nullptr;
 // Satu client per koneksi: server->getClient() menghapus daftar layanan (deleteServices) setiap dipanggil,
 // jadi memanggilnya lagi (mis. baca jam) membuat ancsControl/amsCommand menunjuk memori yang sudah dibuang.
 static NimBLEClient *client = nullptr;
+// Langkah setup GATT (lihat setupNextStep)
+enum SetupStep : uint8_t { SS_IDLE, SS_CTS, SS_BATTERY, SS_SVC_CHANGED, SS_ANCS, SS_AMS };
+static uint8_t setupStep = SS_IDLE;
+static uint32_t setupAt = 0;  // millis() saat setup dimulai, untuk batas PAIR_TIMEOUT_MS
 
 // ANCS bisa belum ada saat pairing (iPhone baru menerbitkannya setelah "Bagikan Notifikasi Sistem" diizinkan)
 // dan bisa terbit/hilang kapan saja; iPhone memberi tahu lewat Service Changed. Cari ulang berkala.
@@ -144,6 +148,8 @@ static bool ancsOk = false;
 static int ancsTries = 0;
 static uint32_t ancsRetryAt = 0;
 static volatile bool svcChanged = false;
+static const int SVC_CHANGED_MAX = 3;  // batas per koneksi: iPhone tidak bisa memicu discovery terus-menerus
+static int svcChangedCount = 0;
 
 // Antrean kecil dari callback notify -> loop
 static const int NS_QUEUE = 8;
@@ -233,6 +239,14 @@ class IosServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *, NimBLEConnInfo &info) override {
     connHandle = info.getConnHandle();
     linkUpAt = millis();
+    // getIdAddress = alamat identitas (RPA iPhone ter-bond sudah di-resolve lewat privacy controller)
+    if (!NimBLEDevice::isBonded(info.getIdAddress()) && NimBLEDevice::getNumBonds() >= CONFIG_BT_NIMBLE_MAX_BONDS) {
+      dlog("iOS tolak: penuh");
+      server->disconnect(info.getConnHandle());
+      return;
+    }
+    ready = false;  // loop bisa saja menyelesaikan setup koneksi lama sesudah onDisconnect
+    setupStep = SS_IDLE;
     linkUp = true;
     dlog("iOS sambung bond=%d", info.isBonded());
     // ANCS/AMS hanya bisa diakses setelah link terenkripsi: minta pairing/enkripsi
@@ -242,8 +256,9 @@ class IosServerCallbacks : public NimBLEServerCallbacks {
     linkUp = encrypted = setupPending = ready = false;
     ancsControl = amsCommand = nullptr;
     client = nullptr;
+    setupStep = SS_IDLE;
     ancsOk = false;
-    ancsTries = 0;
+    ancsTries = svcChangedCount = 0;
     ble_setRinging(nullptr, false);
     // NimBLE: alasan = 0x200 + kode HCI
     int hci = reason & 0xFF;
@@ -314,8 +329,8 @@ bool ios_readTime() {
 }
 
 // Cari ANCS & subscribe. getService() bertanya lagi ke iPhone bila belum ada di cache, jadi aman diulang.
+// Pemanggil wajib memasang WdtPause (setupNextStep sudah; retry di ios_loop juga) agar tidak bersarang.
 static void setupAncs() {
-  WdtPause wp;
   ancsTries++;
   NimBLERemoteService *ancs = client->getService(ANCS_SERVICE);
   if (ancs) {
@@ -333,43 +348,62 @@ static void setupAncs() {
   ancsRetryAt = millis() + ANCS_RETRY_MS;
 }
 
-static void setupGatt() {
+// Setup GATT dipecah per langkah (satu langkah per putaran ios_loop, masing-masing dengan WdtPause sendiri):
+// tiap operasi bisa menunggu iPhone s.d. timeout ATT 30 dtk, jadi berurutan dalam satu panggilan = layar beku menit-an.
+
+static void setupStart() {
+  if (client) client->deleteServices();  // setup ulang (Service Changed): cache layanan lama tidak berlaku
+  else client = server->getClient(connHandle);  // satu kali per koneksi (lihat catatan di atas)
+  if (!client) { dlog("iOS getClient gagal"); return; }
+  setupStep = SS_CTS;
+  setupAt = millis();
+}
+
+static void setupNextStep() {
+  if (!linkUp || !client) { setupStep = SS_IDLE; return; }  // putus di antara langkah: jangan operasi GATT
   WdtPause wp;
-  client = server->getClient(connHandle);  // satu kali per koneksi (lihat catatan di atas)
   NimBLEClient *c = client;
-  if (!c) { dlog("iOS getClient gagal"); return; }
-
-  if (NimBLERemoteCharacteristic *ct = findChar(c, NimBLEUUID(CTS_SERVICE), NimBLEUUID(CTS_CURRENT_TIME))) {
-    NimBLEAttValue v = ct->readValue();
-    applyTime(v.data(), v.length());
-    if (ct->canNotify()) ct->subscribe(true, onCurrentTime);
-  } else {
-    dlog("iOS CTS tak ada");
+  switch (setupStep) {
+    case SS_CTS:
+      if (NimBLERemoteCharacteristic *ct = findChar(c, NimBLEUUID(CTS_SERVICE), NimBLEUUID(CTS_CURRENT_TIME))) {
+        NimBLEAttValue v = ct->readValue();
+        applyTime(v.data(), v.length());
+        if (ct->canNotify()) ct->subscribe(true, onCurrentTime);
+      } else {
+        dlog("iOS CTS tak ada");
+      }
+      setupStep = SS_BATTERY;
+      break;
+    case SS_BATTERY:
+      if (NimBLERemoteCharacteristic *bl = findChar(c, NimBLEUUID(BATTERY_SERVICE), NimBLEUUID(BATTERY_LEVEL))) {
+        NimBLEAttValue v = bl->readValue();
+        if (v.length()) battery = v.data()[0];
+        if (bl->canNotify()) bl->subscribe(true, onBattery);
+      }
+      setupStep = SS_SVC_CHANGED;
+      break;
+    case SS_SVC_CHANGED:
+      // Service Changed: iPhone memberi tahu bila ANCS terbit/hilang (spesifikasi ANCS Apple)
+      if (NimBLERemoteCharacteristic *sc = findChar(c, NimBLEUUID(GATT_SERVICE), NimBLEUUID(GATT_SERVICE_CHANGED)))
+        sc->subscribe(false, onServiceChanged);  // false = indication
+      setupStep = SS_ANCS;
+      break;
+    case SS_ANCS:
+      setupAncs();  // gagal: dicoba lagi oleh retry di ios_loop
+      setupStep = SS_AMS;
+      break;
+    case SS_AMS:
+      if (NimBLERemoteService *ams = c->getService(AMS_SERVICE)) {
+        amsCommand = ams->getCharacteristic(AMS_REMOTE_COMMAND);
+        NimBLERemoteCharacteristic *eu = ams->getCharacteristic(AMS_ENTITY_UPDATE);
+        if (amsCommand) amsCommand->subscribe(true, nullptr);  // daftar perintah yang didukung (tidak dipakai)
+        if (eu && eu->subscribe(true, onEntityUpdate)) requestAmsAttributes(eu);
+      }
+      setupStep = SS_IDLE;
+      ready = true;
+      ble_markPhoneInfoChanged();
+      break;
   }
-
-  if (NimBLERemoteCharacteristic *bl = findChar(c, NimBLEUUID(BATTERY_SERVICE), NimBLEUUID(BATTERY_LEVEL))) {
-    NimBLEAttValue v = bl->readValue();
-    if (v.length()) battery = v.data()[0];
-    if (bl->canNotify()) bl->subscribe(true, onBattery);
-  }
-
-  // Service Changed: iPhone memberi tahu bila ANCS terbit/hilang (spesifikasi ANCS Apple)
-  if (NimBLERemoteCharacteristic *sc = findChar(c, NimBLEUUID(GATT_SERVICE), NimBLEUUID(GATT_SERVICE_CHANGED)))
-    sc->subscribe(false, onServiceChanged);  // false = indication
-
-  setupAncs();
-
-  NimBLERemoteService *ams = c->getService(AMS_SERVICE);
-  if (ams) {
-    amsCommand = ams->getCharacteristic(AMS_REMOTE_COMMAND);
-    NimBLERemoteCharacteristic *eu = ams->getCharacteristic(AMS_ENTITY_UPDATE);
-    if (amsCommand) amsCommand->subscribe(true, nullptr);  // daftar perintah yang didukung (tidak dipakai)
-    if (eu && eu->subscribe(true, onEntityUpdate)) {
-      requestAmsAttributes(eu);
-    }
-  }
-  ready = true;
-  ble_markPhoneInfoChanged();
 }
 
 // =====================================================================================
@@ -455,7 +489,9 @@ static void processDataSource() {
   int used = ancs_parseAttributes(buf, n, uid, appId, sizeof(appId), title, sizeof(title), msg, sizeof(msg));
   if (used == 0) return;  // masih menunggu fragmen berikutnya
   portENTER_CRITICAL(&iosMux);
-  if (used < 0 || (size_t)used >= dsLen) dsLen = 0;
+  if (dsLen < n) {
+    // luapan di task BLE sementara kita mem-parse: buffer sudah berisi data baru, jangan digeser
+  } else if (used < 0 || (size_t)used >= dsLen) dsLen = 0;
   else { memmove(dsBuf, dsBuf + used, dsLen - used); dsLen -= used; }
   portEXIT_CRITICAL(&iosMux);
   if (used < 0) { reqOutstanding = NO_UID; return; }
@@ -548,6 +584,7 @@ void ios_stop() {
   linkUp = encrypted = setupPending = ready = false;
   ancsControl = amsCommand = nullptr;
   client = nullptr;
+  setupStep = SS_IDLE;
   ancsOk = false;
   ancsTries = 0;
   reqCount = 0;
@@ -565,7 +602,17 @@ void ios_loop() {
   if (!running) return;
   if (setupPending && linkUp) {
     setupPending = false;
-    setupGatt();
+    setupStart();
+  }
+  if (setupStep != SS_IDLE && linkUp) {
+    if (millis() - setupAt > PAIR_TIMEOUT_MS) {
+      dlog("iOS setup lama");
+      setupStep = SS_IDLE;
+      server->disconnect(connHandle);
+    } else {
+      setupNextStep();
+      return;  // satu langkah per putaran; proses notif sesudah setup selesai
+    }
   }
   if (ctsHave) {
     uint8_t d[10];
@@ -583,15 +630,21 @@ void ios_loop() {
     }
     return;
   }
-  if (svcChanged) {  // ANCS bisa baru terbit / hilang: cari ulang dari awal
+  if (svcChanged) {  // layanan iPhone berubah (ANCS terbit/hilang): cache lama basi, setup ulang semua
     svcChanged = false;
-    dlog("iOS service changed");
-    ancsOk = false;
-    ancsControl = nullptr;
-    ancsTries = 0;
-    ancsRetryAt = millis();
+    if (client && svcChangedCount < SVC_CHANGED_MAX) {
+      svcChangedCount++;
+      dlog("iOS svc changed %d/%d", svcChangedCount, SVC_CHANGED_MAX);
+      ancsOk = false;
+      ancsControl = amsCommand = nullptr;
+      ancsTries = 0;
+      setupStart();  // langkah-langkahnya dijalankan putaran berikutnya
+    }
   }
-  if (!ancsOk && client && ancsTries < ANCS_RETRY_MAX && (int32_t)(millis() - ancsRetryAt) >= 0) setupAncs();
+  if (!ancsOk && client && setupStep == SS_IDLE && ancsTries < ANCS_RETRY_MAX && (int32_t)(millis() - ancsRetryAt) >= 0) {
+    WdtPause wp;
+    setupAncs();
+  }
   processNotificationSource();
   processDataSource();
   sendNextAttrRequest();

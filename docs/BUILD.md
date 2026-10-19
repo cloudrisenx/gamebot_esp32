@@ -57,3 +57,10 @@ The new partition table (1.75 MB app, 384 KB animation) must be flashed over USB
 |---|---|
 | `G:\pio_global` (user variable `PLATFORMIO_CORE_DIR`) or `C:\Users\<user>\.platformio` | global PlatformIO (VS Code buttons) |
 | `G:\esp32_c3\ESP32\.pio_lightsleep` | light sleep build only (ignored by git) |
+
+## Libraries
+
+ChronosESP32 (Android / Chronos app) is a **local patched fork** in `lib/ChronosESP32` (security fixes, see
+`lib/ChronosESP32/PATCHES.md`). It is not in `lib_deps`: do not delete the folder and do not add `fbiego/ChronosESP32`
+back, or the unpatched version is used again. Its dependencies are pinned in `platformio.ini`
+(`h2zero/NimBLE-Arduino@2.5.1`, `fbiego/ESP32Time@2.0.6`).

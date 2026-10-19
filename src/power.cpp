@@ -238,27 +238,32 @@ void power_update(PowerReason keepAwake, bool sleepAllowed) {
 }
 
 // ---- Tunggu loop: tidur sampai batas waktu, atau bangun seketika oleh tombol (ISR) / BLE (task lain) ----
-static TaskHandle_t loopTask = nullptr;
+// Semaphore, BUKAN notifikasi task: NimBLE menunggu jawaban GATT dengan xTaskNotifyWait di task loop yang sama;
+// notifikasi dari sini akan membangunkan tunggu itu terlalu cepat (operasi dianggap selesai -> stack rusak).
+static SemaphoreHandle_t loopSem = nullptr;
 static volatile TickType_t lastEdgeTick = 0;
 
 static void IRAM_ATTR onButtonEdge() {
   lastEdgeTick = xTaskGetTickCountFromISR();
-  if (!loopTask) return;
+  if (!loopSem) return;
   BaseType_t woken = pdFALSE;
-  vTaskNotifyGiveFromISR(loopTask, &woken);
+  xSemaphoreGiveFromISR(loopSem, &woken);
   if (woken) portYIELD_FROM_ISR();
 }
 
 void power_loopWaitBegin() {
-  loopTask = xTaskGetCurrentTaskHandle();
+  loopSem = xSemaphoreCreateBinary();
   lastEdgeTick = xTaskGetTickCount();
   buttons_attachWake(onButtonEdge);
 }
 
-void power_loopWait(uint32_t ms) { ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(ms)); }
+void power_loopWait(uint32_t ms) {
+  if (loopSem) xSemaphoreTake(loopSem, pdMS_TO_TICKS(ms));
+  else vTaskDelay(pdMS_TO_TICKS(ms));
+}
 
 void power_loopWake() {
-  if (loopTask) xTaskNotifyGive(loopTask);
+  if (loopSem) xSemaphoreGive(loopSem);
 }
 
 bool power_buttonRecentlyChanged(uint32_t ms) { return xTaskGetTickCount() - lastEdgeTick < pdMS_TO_TICKS(ms); }

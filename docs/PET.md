@@ -38,7 +38,8 @@ Never sudden anger: the annoyed run-away only happens when it is tickled 6x.
 
 - The screen stays on for **5 minutes** after the last button while Pet is shown, then the normal "Screen off" rule.
 - While the screen is off, during a WhatsApp pop-up or a call, the pet is **frozen** (it does not jump ahead) and Pet
-  never holds off light sleep. A WhatsApp arriving while Pet is shown makes the cat look surprised afterwards.
+  never holds off light sleep. A WhatsApp arriving while Pet is shown makes the cat jump first; the pop-up follows
+  1 s later (`PET_SURPRISE_MS` in `src/main.cpp`). Calls are not delayed.
 
 ## Measured cost (PC estimate, not yet measured on the watch)
 

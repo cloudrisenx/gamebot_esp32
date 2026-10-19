@@ -745,6 +745,7 @@ static void drawLog() {
   char line[DLOG_COLS + 1];
   for (int i = 0; i < GUIDE_ROWS && logTop + i < n; i++) {
     dlog_line(logTop + i, line, sizeof(line));
+    line[DLOG_COLS - 1] = '\0';  // 20 huruf: kolom terakhir untuk penanda scroll
     display.setCursor(0, 13 + i * 10);
     display.print(line);
   }

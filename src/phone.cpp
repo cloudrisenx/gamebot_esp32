@@ -84,6 +84,8 @@ static PhoneScreen screen = PS_LIST;
 static Carousel itemCar = {};
 static Carousel notifCar = {};          // kartu Notifikasi (sel = indeks riwayat)
 static int detailTop = 0;
+// Salinan notif yang sedang dibuka: notif baru menggeser riwayat (indeks 0 = terbaru), isi detail tidak boleh ikut berganti
+static NotifEntry detailEntry;
 static bool okHolding = false;          // OK sedang ditahan di daftar Notifikasi
 static uint32_t okHoldStart = 0;
 static uint32_t deletedUntil = 0;       // tampilkan "Dihapus" sampai waktu ini
@@ -158,7 +160,7 @@ static void startScreen(PhoneScreen s) {
   else if (!wantsHid && remote_running()) ble_remoteStop();
   marquee_reset();
   if (s == PS_NOTIF_LIST) { notifCar.sel = notifCar.from = 0; ble_markRead(); }
-  if (s == PS_NOTIF_DETAIL) detailTop = 0;
+  if (s == PS_NOTIF_DETAIL) { detailTop = 0; detailEntry = ble_historyAt(notifCar.sel); }
 }
 
 void phone_requestStart(PhoneStart s) { pendingStart = s; }
@@ -241,7 +243,7 @@ static void drawNotifList() {
 }
 
 static void drawNotifDetail() {
-  const NotifEntry &e = ble_historyAt(notifCar.sel);
+  const NotifEntry &e = detailEntry;
   beginScreen(e.time);
   marquee_draw(0, 13, 128, asciiOnly(e.title).c_str());
   display.drawFastHLine(0, 22, 128, SSD1306_WHITE);

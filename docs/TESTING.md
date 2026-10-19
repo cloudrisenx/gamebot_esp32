@@ -99,7 +99,7 @@ Then upload the old animation `backup/v1.9.19/frames.bin` through the OTA page (
 | 5 | Leave Pet alone for a few minutes | random cat activities (walk, tail chase, stretch, scratch, hide & peek, zoomies), boredom, sleep (max 3 min) |
 | 6 | No button for 5 minutes | the screen then dims/turns off as usual; Pet freezes |
 | 7 | Screen off → press a button | screen on, Pet continues where it was (no jump); stays on again for 5 minutes |
-| 8 | WhatsApp arrives while in Pet | pop-up as usual; after it closes the cat looks surprised |
+| 8 | WhatsApp arrives while in Pet | the cat looks surprised first, the pop-up appears ±1 s later |
 | 9 | BACK in Pet | back to Home |
 
 PC tests (no watch needed): `tools/pet_host_test.cpp` (behaviour) and `tools/pet_parity.py` (pixel-exact vs the
@@ -120,6 +120,20 @@ output any more.
 | 6 | Send a WhatsApp to the iPhone (screen locked) | pop-up on the watch |
 | 7 | Settings → Clock → sync with phone, then another WhatsApp | pop-up still arrives |
 | 8 | Debug log screen: L/R, OK, BACK | scroll / clear ("No log yet") / back |
+| 9 | v0.9.40 iPhone: Forget phones, pair with the **screen off** (slow pairing) | `ANCS aktif`; after it no `v0.9.40 Task WDT` boot line (no reset) |
+| 10 | v0.9.40 iPhone mode, 3 pairings stored: another (unknown) phone connects | `iOS tolak: penuh`; the iPhone still gets notifications |
+| 11 | v0.9.40 Camera: exit/enter the Camera screen 5x, Android Bluetooth off/on | never a restart; at most `CAM reset ..` / `CAM reset habis` |
+| 12 | v0.9.40 Debug log with long lines | every line readable, last character not hidden by the scroll marker |
+| 13 | v0.9.41 iPhone: pair, then right away send 5 WhatsApps in a row while pressing buttons | no restart (no new `v0.9.41 ...` boot line), notifications arrive |
+| 14 | v0.9.41 iPhone far away / weak signal while pairing | menus keep reacting; at worst `iOS setup lama` after 60 s |
+| 15 | v0.9.41 Pet: WhatsApp with the screen off | screen turns on, the cat jumps, then the pop-up |
+| 16 | v0.9.42 Android: WhatsApp with screen on and off | pop-up as fast as before (no extra delay) |
+| 17 | v0.9.42 Android: Music open, skip songs quickly for 5 minutes | title/artist update; no restart (no new boot line in Debug log) |
+| 18 | v0.9.42 Android: Google Maps navigation, Phone > Weather, Phone > Camera | all still work as before |
+| 19 | v0.9.42 Open a notification in Phone > Notifications, then receive a new WhatsApp | the open notification stays the same |
+| 20 | v0.9.43 Android: 3-4 WhatsApps in a row while music is playing | every pop-up shows the right sender and text |
+| 21 | v0.9.43 iPhone: turn the iPhone's Bluetooth off/on right after it connects, a few times | pairing still finishes, Debug log `ANCS aktif` |
+| 22 | v0.9.43 Android: change Phone mode / enter and leave Camera, then come back | no old notification pops up again |
 
 ## Rebuilding (developer notes)
 

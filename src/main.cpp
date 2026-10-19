@@ -185,17 +185,38 @@ static void startPopup() {
   popupTop = 0;
   popupManual = false;
   power_activity(PR_POPUP);
-  if (state == ST_PET) pet_notify();  // pet terkejut, terlihat setelah pop-up ditutup
   marquee_reset();
   popupLines = popup_draw(popupSender, popupMsg, popupTop);
   popupDuration = constrain((uint32_t)popupLines * POPUP_LINE_MS + POPUP_SCROLL_DELAY_MS, (uint32_t)POPUP_MS,
                             (uint32_t)POPUP_MAX_MS);
 }
 
+// Di Pet: kucing kaget dulu (animasi tetap jalan), pop-up menyusul sesudah PET_SURPRISE_MS
+static const uint32_t PET_SURPRISE_MS = 1000;
+static uint32_t popupDelayUntil = 0;  // 0 = tidak ada pop-up yang ditunda
+
 // true selama pop-up tampil (state di bawahnya dijeda)
 static bool handlePopup() {
+  if (!popupActive && popupDelayUntil) {
+    // pesan baru selama menunggu: ganti isinya, sama seperti pop-up yang sedang tampil
+    ble_takeWaNotif(popupSender, sizeof(popupSender), popupMsg, sizeof(popupMsg));
+    if ((int32_t)(millis() - popupDelayUntil) < 0) return false;
+    popupDelayUntil = 0;
+    if (state == ST_GAME) return false;  // sama dengan aturan di bawah: game tidak diganggu
+    popupActive = true;
+    buttons_clear();
+    startPopup();
+    return true;
+  }
   if (!popupActive) {
     if (!ble_takeWaNotif(popupSender, sizeof(popupSender), popupMsg, sizeof(popupMsg))) return false;
+    if (state == ST_PET) {
+      pet_notify();
+      power_activity(PR_POPUP);  // layar nyala supaya kagetnya terlihat
+      popupDelayUntil = millis() + PET_SURPRISE_MS;
+      if (!popupDelayUntil) popupDelayUntil = 1;  // 0 berarti "tidak menunggu"
+      return false;
+    }
     // Sedang di menu Game: jangan ganggu. Notifikasi sudah masuk riwayat (HP > Notifikasi) dan
     // penghitung belum dibaca di Beranda; pop-up dibuang, tidak ditunda.
     if (state == ST_GAME) {

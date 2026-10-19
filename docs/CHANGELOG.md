@@ -1,6 +1,6 @@
 # Changelog & Test Checklist
 
-Current firmware version: **v0.9.39** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
+Current firmware version: **v0.9.43** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
 Serial log lines are quoted exactly as the firmware prints them (in Indonesian).
 
 ---
@@ -244,6 +244,69 @@ Version numbering restarts at 0.9.x because the watch is still a prototype.
 - [x] New **Settings → Debug log**: the last 10 lines (seconds since boot + short text), L/R scroll, OK clear, BACK exit.
       All Serial monitor output was removed from the firmware; important events go to the Debug log.
 - [ ] Test on the watch: [TESTING.md](TESTING.md) section 7.
+
+---
+
+## 10. v0.9.40: BLE audit fixes
+
+- [x] iPhone: the Task WDT pause around service discovery is no longer nested (v0.9.39 re-enabled the WDT halfway
+      through setup, so a slow iPhone could reset the watch while pairing).
+- [x] iPhone: when the 3 pairing slots are full, an unknown device is rejected before pairing (NimBLE would otherwise
+      delete the *oldest* pairing, i.e. your iPhone). Debug log: `iOS tolak: penuh`.
+- [x] iPhone: on *Service Changed* the cached service list is dropped and ANCS + AMS + CTS are set up again (max 3x per
+      connection).
+- [x] Camera: a stranger pairing and disconnecting can no longer restart the chip (`ESP.restart()` removed); after 4
+      automatic Bluetooth resets the watch just keeps advertising (`CAM reset habis`).
+- [x] Camera: power loss while switching pairings into Camera mode no longer loses the normal pairing (new state
+      "swapping": at boot the store is refilled from the `bond_main` backup).
+- [x] iPhone: a long ANCS reply arriving while the previous one is parsed no longer corrupts the buffer.
+- [x] Debug log: lines show 20 characters so the scroll marker does not cover the last one.
+- [ ] Known, not fixed: the Chronos library (Android mode) accepts writes without encryption, so a nearby device can
+      send fake notifications / time while the phone is not connected. Fixing it needs a test with the Chronos app.
+      (v0.9.42: the buffer overflows reachable this way are patched; writes are still unencrypted.)
+- [ ] Test on the watch: [TESTING.md](TESTING.md) section 7, steps 9-12.
+
+---
+
+## 11. v0.9.41: no early GATT returns, iPhone setup in small steps, Pet is surprised before the pop-up
+
+- [x] The main loop is woken by a semaphore instead of a task notification. NimBLE waits for GATT replies with a task
+      notification on the same task, so a button press or an incoming iPhone notification could end that wait early
+      (the operation looked successful, the real reply later wrote into reused stack memory -> random crashes).
+- [x] iPhone setup (time, battery, Service Changed, ANCS, AMS) runs one step per loop pass, each with its own WDT
+      pause, so a slow iPhone no longer freezes the screen for minutes; setup longer than 60 s disconnects
+      (`iOS setup lama`).
+- [x] Checked, unchanged: OTA upload waits at most 5 s per chunk and feeds the WDT per chunk; NVS writes and Bluetooth
+      restart are short.
+- [x] Pet: a WhatsApp makes the cat jump first; the pop-up follows 1 s later (other screens unchanged, calls not delayed).
+- [ ] Test on the watch: [TESTING.md](TESTING.md) section 7, steps 13-15, and section 6 step 8.
+
+---
+
+## 12. v0.9.42: Chronos library patched (local fork), stable notification detail
+
+- [x] ChronosESP32 1.9.1 is now a local fork in `lib/ChronosESP32` (`fbiego/ChronosESP32` removed from `lib_deps`;
+      NimBLE-Arduino 2.5.1 and ESP32Time 2.0.6 pinned). Patches are listed in `lib/ChronosESP32/PATCHES.md`.
+- [x] Android: packets written to the Chronos characteristic are bounds-checked (before, a nearby device could write
+      past the 512-byte buffer without pairing). Contact, QR and navigation-icon indexes are bounds-checked too.
+- [x] Android: Chronos packets are processed in the main loop instead of the Bluetooth task, so music / navigation /
+      weather text is no longer changed while a screen is reading it (random crashes on those screens).
+- [x] Phone > Notifications: an open notification no longer changes into another one when a new WhatsApp arrives.
+- [x] Setting the clock by hand checks the month before using it.
+- [ ] Test on the watch: [TESTING.md](TESTING.md) section 7, steps 16-19.
+
+---
+
+## 13. v0.9.43: fixes for the v0.9.42 Chronos queue and iPhone reconnects
+
+- [x] Chronos (Android): packets are assembled in their own buffer in the Bluetooth task; the buffer `dataReceived()`
+      reads is used only by the main loop (in v0.9.42 a new packet could overwrite the one being processed).
+- [x] Chronos: turning Android Bluetooth off (mode change, Restart BT, Camera) clears unprocessed packets, so an old
+      notification is not shown again later.
+- [x] iPhone: every new connection starts the setup from scratch (`ready` / setup step reset in `onConnect`), and a
+      setup step stops at once when the iPhone disconnected in between.
+- [x] `.gitignore`: PC test binaries `tools/*.exe`, `tools/*.pdb`.
+- [ ] Test on the watch: [TESTING.md](TESTING.md) section 7, steps 20-22.
 
 ---
 

@@ -92,6 +92,7 @@ uint32_t clock_lastSync() { return lastSync; }
 
 bool clock_setManual(int hour, int minute, int day, int month, int year) {
   static const uint8_t DAYS_IN[12] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  if (month < 1 || month > 12) return false;  // sebelum DAYS_IN[month - 1]
   bool leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
   int maxDay = month == 2 && !leap ? 28 : DAYS_IN[month - 1];
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || month < 1 || month > 12 || day < 1 || day > maxDay ||

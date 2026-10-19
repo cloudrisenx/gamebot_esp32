@@ -23,3 +23,6 @@ dependencies.lock
 # Catatan lokal untuk Claude Code (tidak dipublikasikan)
 CLAUDE.md
 tools/__pycache__/
+# hasil compile tes PC Pet (tools/pet_host_test.cpp)
+tools/*.exe
+tools/*.pdb

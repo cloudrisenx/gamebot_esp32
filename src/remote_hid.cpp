@@ -100,7 +100,11 @@ static bool nvsLoad(const char *ns, BondSet &s) {
   return ok;
 }
 
-static void setInHid(bool inHid) {
+// inhid: 0 = store berisi bond mode biasa, 1 = bond Remote, 2 = sedang menukar ke Remote (cadangan bond_main
+// sudah tersimpan, store mungkin setengah jadi) -> saat boot store diisi ulang dari bond_main.
+static const uint8_t HID_NO = 0, HID_YES = 1, HID_SWAPPING = 2, HID_KEEP = 0xFF;
+
+static void setInHid(uint8_t inHid) {
   Preferences p;
   if (p.begin("bond_state", false)) { p.putUChar("inhid", inHid); p.end(); }
 }
@@ -111,23 +115,24 @@ void remote_clearBonds() {
     Preferences p;
     if (p.begin(ns, false)) { p.clear(); p.end(); }
   }
-  setInHid(false);
+  setInHid(HID_NO);
 }
 
-static bool inHid() {
+static uint8_t inHid() {
   Preferences p;
-  if (!p.begin("bond_state", true)) return false;
-  bool v = p.getUChar("inhid", 0);
+  if (!p.begin("bond_state", true)) return HID_NO;
+  uint8_t v = p.getUChar("inhid", HID_NO);
   p.end();
   return v;
 }
 
 // Tukar isi store: simpan set sekarang ke saveNs, lalu isi store dari loadNs. Atomik: bila gagal,
 // store dikembalikan ke isi semula. Host NimBLE harus sudah berjalan (setelah NimBLEDevice::init).
-static bool swapBonds(const char *saveNs, const char *loadNs) {
+static bool swapBonds(const char *saveNs, const char *loadNs, uint8_t markAfterSave = HID_KEEP) {
   BondSet &cur = setA, &next = setB;
   if (!readStore(cur)) { dlog("BOND baca gagal"); return false; }
   if (!nvsSave(saveNs, cur)) { dlog("BOND simpan gagal"); return false; }
+  if (markAfterSave != HID_KEEP) setInHid(markAfterSave);  // cadangan aman di NVS sebelum store diubah
   if (!nvsLoad(loadNs, next)) { dlog("BOND %s rusak", loadNs); return false; }
   if (!clearStore(cur)) {
     writeStore(cur);  // pulihkan entri yang terlanjur terhapus
@@ -163,7 +168,6 @@ static uint32_t resetAtMs = 0;
 static int resetCount = 0;
 static const int MAX_AUTO_RESET = 4;
 static const uint32_t RESET_DELAY_MS = 600;
-static volatile bool restartPending = false;  // reset software gagal berkali-kali: restart total chip
 
 class RemoteCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *server, NimBLEConnInfo &info) override {
@@ -185,14 +189,13 @@ class RemoteCallbacks : public NimBLEServerCallbacks {
     connected = false;
     dlog("CAM putus %02X", reason & 0xFF);
     if (wasReady && running && !bondError && !rejectedFull) {
+      // Tanpa restart chip: siapa saja di dekat jam bisa memicu jalur ini (pairing tanpa bond lalu putus)
       if (resetCount < MAX_AUTO_RESET) {
         resetCount++;
         resetAtMs = millis() + RESET_DELAY_MS;
-      } else {
-        // Reset software (deinit/init stack BLE) sudah dicoba berkali-kali dan tetap gagal:
-        // sejenis state radio BT kadang hanya bersih dengan reset total chip (setara cabut daya).
-        // ESP.restart() di sini setara itu, tanpa pengguna harus cabut daya manual.
-        restartPending = true;
+      } else if (resetCount == MAX_AUTO_RESET) {
+        resetCount++;
+        dlog("CAM reset habis");
       }
     }
   }
@@ -212,11 +215,20 @@ static void remoteAddress(uint8_t addr[6]) {
   addr[5] |= 0xC0;
 }
 
+// Daya putus di tengah penukaran ke Remote: isi store tidak pasti, cadangan bond_main lengkap -> pakai itu
+static bool restoreMain() {
+  BondSet &cur = setA, &main = setB;
+  if (!readStore(cur) || !nvsLoad("bond_main", main)) return false;
+  clearStore(cur);
+  return writeStore(main);
+}
+
 void remote_recoverBonds() {
-  if (!inHid()) return;
+  uint8_t st = inHid();
+  if (st == HID_NO) return;
   // Reset/tidur saat mode Remote: store masih berisi bond Remote -> kembalikan bond mode biasa
   NimBLEDevice::init("");
-  if (swapBonds("bond_hid", "bond_main")) setInHid(false);
+  if (st == HID_SWAPPING ? restoreMain() : swapBonds("bond_hid", "bond_main")) setInHid(HID_NO);
   NimBLEDevice::deinit(true);
 }
 
@@ -262,14 +274,14 @@ void remote_begin() {
   NimBLEDevice::init(remoteName().c_str());
   // inhid masih 1 = pemulihan sebelumnya gagal: store berisi bond Remote. Menukar lagi akan
   // menimpa cadangan bond_main (bond iPhone) -> tolak.
-  bondError = inHid() || !swapBonds("bond_main", "bond_hid");
+  bondError = inHid() != HID_NO || !swapBonds("bond_main", "bond_hid", HID_SWAPPING);
   if (bondError) {
     // Tanpa store terpisah, pairing Remote bisa menimpa bond iPhone: jangan advertise
     NimBLEDevice::deinit(true);
     running = true;  // layar tetap di mode Remote untuk menampilkan error
     return;
   }
-  setInHid(true);
+  setInHid(HID_YES);
   running = true;
   resetCount = 0;
   resetAtMs = 0;
@@ -277,10 +289,6 @@ void remote_begin() {
 }
 
 void remote_update() {
-  if (restartPending) {
-    dlog("CAM restart chip");
-    ESP.restart();
-  }
   if (!running || bondError || !resetAtMs || (int32_t)(millis() - resetAtMs) < 0) return;
   resetAtMs = 0;
   dlog("CAM reset BLE %d/%d", resetCount, MAX_AUTO_RESET);
@@ -303,7 +311,7 @@ void remote_end() {
     NimBLEDevice::getAdvertising()->stop();
     for (uint16_t h : server->getPeerDevices()) server->disconnect(h);
   }
-  if (swapBonds("bond_hid", "bond_main")) setInHid(false);  // gagal: dipulihkan lagi saat boot
+  if (swapBonds("bond_hid", "bond_main")) setInHid(HID_NO);  // gagal: dipulihkan lagi saat boot
   NimBLEDevice::setOwnAddrType(BLE_OWN_ADDR_PUBLIC);  // tipe alamat disimpan statis: jangan terbawa ke Chronos/ANCS
   delete hid;  // objek milik kita; server & karakteristik dihapus deinit(true)
   hid = nullptr;
