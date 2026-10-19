@@ -110,4 +110,5 @@ Camera pairing is stored separately, so the iPhone pairing for notifications is 
 | BACK | During the countdown = cancel; otherwise = exit |
 
 Snap = the **Volume Up** button, which works as the shutter in the iPhone & Android Camera apps.
+On Android, check the Camera app setting **Volume keys → Take picture** (some phones use them for zoom by default).
 The watch stores up to **3 Camera pairings** (separate from normal pairing); when full, a new phone is rejected.
