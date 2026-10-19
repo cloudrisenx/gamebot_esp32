@@ -1,6 +1,6 @@
 # Changelog & Test Checklist
 
-Current firmware version: **v0.9.43** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
+Current firmware version: **v0.9.44** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
 Serial log lines are quoted exactly as the firmware prints them (in Indonesian).
 
 ---
@@ -307,6 +307,20 @@ Version numbering restarts at 0.9.x because the watch is still a prototype.
       setup step stops at once when the iPhone disconnected in between.
 - [x] `.gitignore`: PC test binaries `tools/*.exe`, `tools/*.pdb`.
 - [ ] Test on the watch: [TESTING.md](TESTING.md) section 7, steps 20-22.
+
+---
+
+## 14. v0.9.44: last audit items (OTA in the background, web input limits, Pet frame time)
+
+- [x] Background OTA (hold OK in Animation / Text) keeps the chip out of light sleep and night deep sleep while the WiFi
+      AP is on, so an upload does not drop when the screen turns off.
+- [x] OTA web page: the text and device fields are rejected (HTTP 413) when far too long (> 1024 / > 128 characters).
+- [x] Pet measures its slowest frame (logic + drawing + sending to the OLED) and writes `Pet maks N ms` to the Debug
+      log when leaving Pet (or once a minute when it got slower). Pet behaviour unchanged (PC tests: behaviour OK,
+      pixel parity 0/4390 different).
+- [ ] Known, not fixed: the OTA web handlers have no CSRF protection (a web page opened on the phone while it is joined
+      to the watch's OTA WiFi could send requests). The AP is only on while you open it yourself.
+- [ ] Test on the watch: [TESTING.md](TESTING.md) section 7, steps 23-25.
 
 ---
 

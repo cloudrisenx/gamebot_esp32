@@ -257,8 +257,11 @@ static void handleTextGet() {
   server.send(200, "application/json", json);
 }
 
+static const unsigned TEXT_ARG_MAX = 1024, DEVICE_ARG_MAX = 128;  // input web: tolak yang jauh di atas batas wajar
+
 static void handleTextSet() {
   String t = server.arg("t");
+  if (t.length() > TEXT_ARG_MAX) { server.send(413, "text/plain", "Teks terlalu panjang"); return; }
   if (text_set(t.c_str(), t.length())) server.send(200, "text/plain", "Tersimpan");
   else server.send(400, "text/plain", "Teks kosong / tidak ada huruf ASCII");
 }
@@ -275,6 +278,8 @@ static String jsonStr(const String &s) {
 
 // Tab Perangkat: POST dev/ble/ssid/pw (kosong = bawaan; pw kosong = tetap), restart=1 = restart sesudahnya
 static void handleDeviceSet() {
+  for (const char *k : {"dev", "ble", "ssid", "pw"})
+    if (server.arg(k).length() > DEVICE_ARG_MAX) { server.send(413, "text/plain", "Isian terlalu panjang"); return; }
   String err;
   if (!settings_setNames(server.arg("dev"), server.arg("ble"), server.arg("ssid"), server.arg("pw"), err)) {
     server.send(400, "text/plain", err);

@@ -134,6 +134,9 @@ output any more.
 | 20 | v0.9.43 Android: 3-4 WhatsApps in a row while music is playing | every pop-up shows the right sender and text |
 | 21 | v0.9.43 iPhone: turn the iPhone's Bluetooth off/on right after it connects, a few times | pairing still finishes, Debug log `ANCS aktif` |
 | 22 | v0.9.43 Android: change Phone mode / enter and leave Camera, then come back | no old notification pops up again |
+| 23 | v0.9.44 Animation paused, hold OK = OTA on, wait until the screen turns off, then upload an animation | the upload still finishes |
+| 24 | v0.9.44 OTA web, Text tab: paste more than 1024 characters | rejected ("Teks terlalu panjang"), old text kept |
+| 25 | v0.9.44 Pet: hold R a few times (morph), then BACK | Debug log `Pet maks N ms`: note N (≤ 33 = smooth 30 fps) |
 
 ## Rebuilding (developer notes)
 

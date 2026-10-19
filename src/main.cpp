@@ -324,11 +324,13 @@ static void loopBody() {
                          : state == ST_TEXT ? PR_KEEP_ANIM  // running text: layar tetap nyala
                          : (state == ST_PET && pet_keepAwake()) ? PR_KEEP_ANIM  // Pet: 5 mnt sejak tombol terakhir
                          : PR_NONE;
-  power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA);
+  // OTA latar (Animasi/Teks): WiFi AP hidup -> jangan deep sleep / light sleep
+  bool otaBg = ota_bgRunning();
+  power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA && !otaBg);
   // Layar mati = selalu light sleep + BLE; deep sleep otomatis hanya jadwal Malam (power_update)
   // Saat pairing iPhone jangan light sleep: pairing + cari layanan bisa 10-30 dtk dan gagal bila chip tidur
   power_lightSleep(!power_screenOn() && keepAwake == PR_NONE && !popupActive && !callShown && !gamePlaying &&
-                   state != ST_OTA && !ios_pairing());
+                   state != ST_OTA && !otaBg && !ios_pairing());
 
   // Layar baru menyala lagi: isi buffer saat mati tidak dikirim, jadi gambar ulang semuanya
   if (power_takeScreenWoke()) {

@@ -49,6 +49,7 @@ Never sudden anger: the annoyed run-away only happens when it is tickled 6x.
 | RAM | static ±22 KB (two 8 KB pixel buffers + sprites + state), no heap use while drawing |
 | Normal frame | ±1,450 pixels, estimated 4-7 ms drawing + ±12 ms I2C at 800 kHz → 30 fps |
 | Face ↔ cat morph (0.8 s) | heaviest frames, estimated 15-30 ms drawing → ±25-30 fps |
+| Measured on the watch | Debug log `Pet maks N ms` (slowest frame incl. OLED send) when leaving Pet |
 
 ## PC tests (no watch needed)
 

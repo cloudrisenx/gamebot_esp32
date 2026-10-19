@@ -4,6 +4,7 @@
 #include "pet_core.h"
 #include "power.h"
 #include "screen.h"
+#include "debuglog.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -19,6 +20,15 @@ static uint32_t lastSeen = 0, lastFrame = 0, lastButton = 0;
 static bool wasOn = true;
 static bool held[3] = {false, false, false};
 static const Btn BTNS[3] = {BTN_UP, BTN_DOWN, BTN_OK};  // urutan tombol mesin: 0 = kiri, 1 = kanan, 2 = OK
+// Pengukuran: frame terlama (logika + gambar + kirim OLED) sejak masuk Pet -> Debug log "Pet maks N ms"
+static uint32_t frameMaxUs = 0, loggedMaxUs = 0, lastMaxLog = 0;
+
+static void logFrameMax(uint32_t now) {
+  if (frameMaxUs <= loggedMaxUs) return;
+  loggedMaxUs = frameMaxUs;
+  lastMaxLog = now;
+  dlog("Pet maks %u ms", (unsigned)((frameMaxUs + 500) / 1000));
+}
 
 static double petNow() { return (double)(uint32_t)(millis() - frozenMs); }
 
@@ -30,6 +40,8 @@ void pet_enter() {
   lastFrame = 0;
   wasOn = true;
   for (int i = 0; i < 3; i++) held[i] = false;
+  frameMaxUs = loggedMaxUs = 0;
+  lastMaxLog = now;
   engine.begin(esp_random(), 0);
 }
 
@@ -67,7 +79,8 @@ AppState pet_update(bool redraw) {
     lastButton = now;
     redraw = true;
   }
-  if (btn_pressed(BTN_BACK)) return ST_HOME;
+  if (btn_pressed(BTN_BACK)) { logFrameMax(now); return ST_HOME; }
+  if (now - lastMaxLog >= 60000) logFrameMax(now);
 
   double t = petNow();
   for (int i = 0; i < 3; i++) {
@@ -85,7 +98,9 @@ AppState pet_update(bool redraw) {
   }
   if (!redraw && now - lastFrame < FRAME_MS) return ST_PET;
   lastFrame = now;
+  uint32_t t0 = micros();
   pet::drawFace(fb, engine.frame(t));
   present();
+  frameMaxUs = max(frameMaxUs, micros() - t0);
   return ST_PET;
 }
