@@ -5,6 +5,7 @@
 #include "remote_hid.h"
 #include "power.h"
 #include <Preferences.h>
+#include "debuglog.h"
 
 static ChronosESP32 watch(BLE_NAME);
 
@@ -69,6 +70,7 @@ static WeatherCache wcache = {};
 
 static void onConnection(bool state) {
   connected = state;
+  dlog("Android %s", state ? "sambung" : "putus");
   power_loopWake();
   navChanged = true;
   if (!state) ringActive = false;
@@ -222,8 +224,7 @@ static void processQueue() {
       lastShownAt = millis();
     }
     // len = panjang pesan yang benar-benar diterima (sesudah dipotong NOTIF_MSG_LEN-1)
-    Serial.printf("[NOTIF] app=%s icon=0x%02X title=\"%s\" len=%u msg=\"%.40s\" -> %s\n",
-                  r.app, r.icon, r.title, (unsigned)strlen(r.msg), r.msg, verdict);
+    dlog("notif %.8s %s", r.app, verdict[0] == 'P' ? "tampil" : "abaikan");
   }
 }
 
@@ -241,7 +242,6 @@ static void loadWeatherCache() {
   if (p.getBytesLength("blob") == sizeof(wcache)) p.getBytes("blob", &wcache, sizeof(wcache));
   p.end();
   if (wcache.count > CS_WEATHER_SIZE) wcache.count = 0;
-  Serial.printf("[CUACA] cache: %u hari, kota \"%s\"\n", wcache.count, wcache.city);
 }
 
 // Salin cuaca Chronos ke cache; tulis NVS hanya bila isinya berbeda
@@ -261,7 +261,6 @@ static void saveWeatherCache() {
   wcache = c;
   Preferences p;
   if (p.begin("wcache", false)) { p.putBytes("blob", &wcache, sizeof(wcache)); p.end(); }
-  Serial.printf("[CUACA] cache disimpan: %d hari, %dC, kota \"%s\"\n", n, c.items[0].temp, c.city);
 }
 
 void ble_begin() {
@@ -280,14 +279,12 @@ static const uint16_t ADV_MIN_UNITS = 800;   // 800 x 0,625 ms = 500 ms
 static const uint16_t ADV_MAX_UNITS = 1600;  // 1600 x 0,625 ms = 1000 ms
 
 static void tuneBlePower() {
-  if (!NimBLEDevice::setPower(BLE_TX_DBM)) Serial.println("BLE: setPower gagal");
+  if (!NimBLEDevice::setPower(BLE_TX_DBM)) dlog("BLE setPower gagal");
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
   adv->stop();  // interval baru berlaku setelah advertising dimulai ulang
   adv->setMinInterval(ADV_MIN_UNITS);
   adv->setMaxInterval(ADV_MAX_UNITS);
   adv->start();
-  Serial.printf("BLE: daya %d dBm, advertising %u-%u ms\n", NimBLEDevice::getPower(),
-                ADV_MIN_UNITS * 5 / 8, ADV_MAX_UNITS * 5 / 8);
 }
 
 static void stopAll() {
@@ -415,8 +412,6 @@ void ble_setLowPowerLink(bool saving) {
   }
   linkMode = saving;
   linkModeAt = now;
-  if (sent) Serial.printf("[BLE] conn param: %s (itv %u-%u ms, lat %u)\n", saving ? "hemat" : "cepat",
-                          mn * 5 / 4, mx * 5 / 4, lat);
 }
 
 bool ble_takeSyncDone(bool &withTime) {
@@ -435,7 +430,6 @@ bool ble_requestTimeSync() {
     ok = ble_connected();
     if (ok) watch.syncRequest();  // Chronos mengirim ulang jam (CF_TIME) & data lain
   }
-  Serial.printf("[JAM] minta sinkron HP: %s\n", ok ? "ok" : "tidak tersambung");
   return ok;
 }
 
@@ -448,7 +442,7 @@ bool ble_takeTimeSynced() {
 void ble_restartRadio() {
   // Sama dengan saat Mode HP diganti: stack dimatikan (deinit), ble_update() menyalakan lagi.
   // Bond tersimpan di NVS NimBLE, tidak terhapus oleh deinit.
-  Serial.println("[BT] restart modul Bluetooth");
+  dlog("BT restart");
   stopAll();
 }
 
@@ -527,7 +521,7 @@ bool ble_deletePairings() {
   bool ok = ios_deleteBonds();
   remote_clearBonds();
   ble_restartRadio();  // ble_update() menyalakan lagi
-  Serial.printf("[BT] hapus pairing: bond aktif %s, bond_main/bond_hid dihapus, BLE restart\n", ok ? "dihapus" : "GAGAL");
+  dlog("hapus pairing %s", ok ? "ok" : "GAGAL");
   return ok;
 }
 

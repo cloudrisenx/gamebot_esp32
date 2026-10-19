@@ -68,6 +68,8 @@ Back to Android: **Menu → Phone → Phone mode → Android**, then connect fro
   find **cute_device**, tap **Connect** once → the iPhone asks to pair. You can close the app afterwards.
 
 **Notifications do not arrive**
+- Look at **Settings → Debug log** on the watch: `ANCS aktif` = the watch is subscribed; `ANCS tak ada 12/12` = the
+  iPhone never published notifications (permission not allowed → forget and pair again).
 - During pairing the **"Share System Notifications"** question must be answered **Allow**. If you missed it:
   forget the device on the iPhone, **Forget phones** on the watch, then pair again.
 - Pairing keeps failing (e.g. a phone that was paired before): forget the device on the iPhone, run

@@ -419,7 +419,7 @@ static bool camAnimating() {
 // Status pairing HID di layar Kamera (teks di kanan ikon, x=36). true bila belum siap dipakai.
 static bool drawHidStatus() {
   const char *l[4] = {nullptr, nullptr, nullptr, nullptr};
-  if (remote_bondError()) { l[0] = T("Gagal siapkan", "Pairing setup"); l[1] = T("pairing.", "failed."); l[2] = T("Lihat log", "See Serial"); l[3] = T("Serial", "log"); }
+  if (remote_bondError()) { l[0] = T("Gagal siapkan", "Pairing setup"); l[1] = T("pairing.", "failed."); l[2] = T("Lihat Setting", "See Settings"); l[3] = "> Debug log"; }
   else if (remote_rejectedFull()) { l[0] = T("Memori pairing", "Pairing memory"); l[1] = T("penuh (3 HP)", "full (3 phones)"); l[2] = T("Lupakan HP lama", "Forget old one"); l[3] = T("lalu coba lagi", "then try again"); }
   else if (!remote_connected()) { l[0] = T("Pair di", "Pair in phone"); l[1] = T("Bluetooth HP:", "Bluetooth:"); static String bt; bt = settings_bleName(); l[2] = bt.c_str(); l[3] = "Remote"; }
   else return false;

@@ -28,8 +28,10 @@ static const char *const WEATHER_NAMES_EN[] = {"Ptly cloud", "Sunny", "Snow", "R
                                                "Cloudy", "Extreme", "Windy", "Fog"};
 static const uint8_t PROGMEM ICON_MAIL[] = {0x00, 0xFF, 0xC3, 0xA5, 0x99, 0x81, 0xFF, 0x00};
 static const uint8_t PROGMEM ICON_POWER[] = {0x10, 0x54, 0x92, 0x92, 0x82, 0x44, 0x38};  // 7x7, BACK = layar mati
-static const uint8_t PROGMEM ICON_PLAY7[] = {0x40, 0x60, 0x70, 0x78, 0x70, 0x60, 0x40};  // 7x7: ketuk = Animasi, tahan = Musik
-static const uint32_t MUSIC_HOLD_MS = 600;
+// 7x7 wajah kucing (telinga, mata): tombol kanan = ketuk Pet, tahan Animasi, 3x ketuk Musik
+static const uint8_t PROGMEM ICON_CAT7[] = {0x82, 0xC6, 0xFE, 0xBA, 0xFE, 0x7C, 0x38};
+static const uint32_t ANIM_HOLD_MS = 600;  // tahan tombol kanan = Animasi
+static const uint32_t TAP_GAP_MS = 300;    // jendela antar-ketukan (3x = Musik)
 static const uint8_t PROGMEM ICON_TURN[] = {0x04, 0x06, 0xFF, 0x86, 0x84, 0x80, 0x80, 0x00};
 
 static const char *const DAYS[] = {"Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"};
@@ -131,11 +133,11 @@ static void draw() {
   display.drawFastHLine(0, RULE_Y, 128, SSD1306_WHITE);
   // Legenda = urutan tombol fisik kiri -> kanan: UP, DOWN, OK, BACK (MENU_SWAP_LR menukar label UP/DOWN).
   // Lebar 36 + 36 + 24 + 7 = 103 px; sisa 25 px dibagi rata ke 3 celah (8, 8, 9): x 0, 44, 88, 121.
-  // Tombol Animasi/Musik = ikon play (dipusatkan di kolom 36 px), Notif = tulisan
+  // Tombol Pet/Animasi/Musik = ikon kucing (dipusatkan di kolom 36 px), Notif = tulisan
   int notifX = MENU_SWAP_LR ? 44 : 0, playX = MENU_SWAP_LR ? 0 : 44;
   display.setCursor(notifX, LEGEND_Y);
   display.print(MENU_SWAP_LR ? "Notif>" : "<Notif");
-  display.drawBitmap(playX + 14, LEGEND_Y, ICON_PLAY7, 7, 7, SSD1306_WHITE);
+  display.drawBitmap(playX + 14, LEGEND_Y, ICON_CAT7, 7, 7, SSD1306_WHITE);
   display.setCursor(88, LEGEND_Y);
   display.print("Menu");
   display.drawBitmap(128 - 7, LEGEND_Y, ICON_POWER, 7, 7, SSD1306_WHITE);
@@ -166,20 +168,37 @@ static uint32_t homeSignature() {
 
 AppState home_update(bool redraw) {
   static RedrawWatch watch;
-  // BTN_DOWN: ketuk = Animasi (dinilai saat dilepas), tahan MUSIC_HOLD_MS = Musik
+  // BTN_DOWN (kanan): ketuk = Pet, tahan ANIM_HOLD_MS = Animasi, 3x ketuk berturut-turut = Musik.
+  // Ketuk dinilai saat dilepas; ketuk 1-2x baru membuka Pet setelah TAP_GAP_MS tanpa ketukan baru
+  // (jadi ketuk tunggal tertunda <= 300 ms, perlu untuk mengenali 3x ketuk).
   static bool playDown = false;
-  static uint32_t playDownAt = 0;
-  if (btn_pressed(BTN_DOWN)) { playDown = true; playDownAt = millis(); }
+  static uint32_t playDownAt = 0, lastTapAt = 0;
+  static uint8_t taps = 0;
+  uint32_t now = millis();
+  if (btn_pressed(BTN_DOWN)) { playDown = true; playDownAt = now; }
   if (playDown) {
-    if (!btn_held(BTN_DOWN)) { playDown = false; return ST_ANIM; }
-    if (millis() - playDownAt >= MUSIC_HOLD_MS) {
+    if (!btn_held(BTN_DOWN)) {
       playDown = false;
-      phone_requestStart(PHONE_START_MUSIC);
-      return ST_PHONE;
+      taps++;
+      lastTapAt = now;
+      if (taps >= 3) {
+        taps = 0;
+        phone_requestStart(PHONE_START_MUSIC);
+        return ST_PHONE;
+      }
+    } else if (now - playDownAt >= ANIM_HOLD_MS) {
+      playDown = false;
+      taps = 0;
+      return ST_ANIM;
     }
   }
-  if (btn_pressed(BTN_OK)) { playDown = false; return ST_MENU; }
-  if (btn_pressed(BTN_UP)) { playDown = false; phone_requestStart(PHONE_START_NOTIF); return ST_PHONE; }
+  if (taps && !playDown && now - lastTapAt >= TAP_GAP_MS) {
+    bool fresh = now - lastTapAt < 1000;  // sisa ketukan lama (mis. layar sempat mati) dibuang, bukan membuka Pet
+    taps = 0;
+    if (fresh) return ST_PET;
+  }
+  if (btn_pressed(BTN_OK)) { playDown = false; taps = 0; return ST_MENU; }
+  if (btn_pressed(BTN_UP)) { playDown = false; taps = 0; phone_requestStart(PHONE_START_NOTIF); return ST_PHONE; }
   if (btn_pressed(BTN_BACK)) power_screenOffNow();
 
   if (marquee_frameDue()) redraw = true;

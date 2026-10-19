@@ -415,8 +415,6 @@ bool hitung_update(bool redraw) {
       } else {
         settings_setHitungLv5Idx(timeIdx);
         settings_setHitungDistIdx(distIdx);
-        Serial.printf("[HITUNG] atur: Lv5 %s, pengecoh %s\n", settings_hitungLv5Name(),
-                      settings_hitungDistNameAt(distIdx));
         timeOpen = false;
         drawReady();
         return true;

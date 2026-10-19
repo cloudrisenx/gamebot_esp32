@@ -25,11 +25,13 @@
 #include "phone.h"
 #include "home.h"
 #include "text_screen.h"
+#include "pet.h"
 #include "screen.h"
 #include "version.h"
+#include "debuglog.h"
 
 // Penanda versi di dalam file .bin; halaman OTA mencari "FWVER:" untuk menampilkan versi file.
-// Dicetak saat boot supaya linker tidak membuangnya.
+// Masuk Debug log saat boot supaya linker tidak membuangnya.
 const char FW_TAG[] __attribute__((used)) = "FWVER:" FW_VERSION ";";
 
 #define SCREEN_WIDTH 128
@@ -50,7 +52,7 @@ const char FW_TAG[] __attribute__((used)) = "FWVER:" FW_VERSION ";";
 #define OLED_I2C_HZ 800000
 #define OLED_I2C_FALLBACK_HZ 400000
 
-#define HEALTH_LOG 1             // log heap & stack ke Serial tiap HEALTH_LOG_MS
+#define HEALTH_LOG 1             // cek loop lambat saat game tiap HEALTH_LOG_MS (ke Debug log)
 #define HEALTH_LOG_MS 10000
 
 // 80 MHz = minimum untuk BLE/WiFi; cukup karena yang lambat adalah I2C OLED, bukan CPU.
@@ -62,7 +64,7 @@ const char FW_TAG[] __attribute__((used)) = "FWVER:" FW_VERSION ";";
 #define LOOP_IDLE_NORMAL_MS 5    // menu & layar statis
 #define LOOP_IDLE_SCREEN_OFF_MS 60   // tombol & notif tetap seketika: loop dibangunkan ISR / BLE
 #define LOOP_IDLE_LIGHT_SLEEP_MS 1000  // light sleep: bangun lebih jarang (ISR tombol / BLE tetap seketika; TWDT 8 dtk)
-#define LOOP_SLOW_WARN_MS 25     // putaran lebih lama dari ini saat game = peringatan di [HEALTH]
+#define LOOP_SLOW_WARN_MS 25     // putaran lebih lama dari ini saat game = baris di Debug log
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
@@ -94,7 +96,6 @@ static void markAppValid() {
   if (esp_ota_get_state_partition(esp_ota_get_running_partition(), &st) == ESP_OK &&
       st == ESP_OTA_IMG_PENDING_VERIFY) {
     esp_ota_mark_app_valid_cancel_rollback();
-    Serial.println("Firmware OTA ditandai valid");
   }
 }
 
@@ -108,6 +109,7 @@ static void enterState(AppState next) {
   if (next == ST_OTA) ota_enter();
   if (next == ST_PHONE) phone_enter();
   if (next == ST_TEXT) text_enter();
+  if (next == ST_PET) pet_enter();
   state = next;
   redraw = true;
   marquee_reset();
@@ -183,6 +185,7 @@ static void startPopup() {
   popupTop = 0;
   popupManual = false;
   power_activity(PR_POPUP);
+  if (state == ST_PET) pet_notify();  // pet terkejut, terlihat setelah pop-up ditutup
   marquee_reset();
   popupLines = popup_draw(popupSender, popupMsg, popupTop);
   popupDuration = constrain((uint32_t)popupLines * POPUP_LINE_MS + POPUP_SCROLL_DELAY_MS, (uint32_t)POPUP_MS,
@@ -196,7 +199,6 @@ static bool handlePopup() {
     // Sedang di menu Game: jangan ganggu. Notifikasi sudah masuk riwayat (HP > Notifikasi) dan
     // penghitung belum dibaca di Beranda; pop-up dibuang, tidak ditunda.
     if (state == ST_GAME) {
-      Serial.println("[NOTIF] pop-up ditahan (game)");
       return false;
     }
     popupActive = true;
@@ -237,8 +239,6 @@ static bool handlePopup() {
 
 void setup() {
   setCpuFrequencyMhz(CPU_MHZ);
-  Serial.begin(115200);
-  Serial.printf("CPU %u MHz, APB %u MHz\n", getCpuFrequencyMhz(), getApbFrequency() / 1000000);
   power_begin();
   buttons_begin();
   settings_begin();
@@ -254,20 +254,17 @@ void setup() {
   }
   if (!oledOk) {
     // Tanpa layar tidak ada yang bisa dilakukan; WDT akan me-reset dan mencoba lagi
-    Serial.println(F("SSD1306 allocation failed"));
+    dlog("OLED gagal");
     for (;;) delay(1000);
   }
   power_applyContrast();
   display.clearDisplay();
-  uint32_t t0 = micros();
   oled_flush();  // layar menyala saat boot, jadi ini mengukur satu frame penuh
-  Serial.printf("OLED I2C %u kHz, kirim 1 frame %.1f ms\n", oledHz / 1000, (micros() - t0) / 1000.0f);
 
   ble_begin();
   clock_begin();
   bool animOk = frames_begin();
-  Serial.printf("%s reset: %s, app: %s, animasi: %s\n", FW_TAG, power_resetReason(),
-                esp_ota_get_running_partition()->label, animOk ? "OK" : "kosong");
+  dlog("v%.6s %.12s", FW_TAG + 6, power_resetReason());  // FW_TAG dipakai: linker tidak membuangnya
 
   // Bangun dari deep sleep, animasi dimatikan, atau frames.bin belum ada: langsung ke Beranda
   if (power_wokeFromSleep() || !settings_bootAnim() || !animOk) state = ST_HOME;
@@ -304,6 +301,7 @@ static void loopBody() {
                          : ble_navActive() ? PR_KEEP_NAV
                          : (state == ST_ANIM && anim_isPlaying()) ? PR_KEEP_ANIM
                          : state == ST_TEXT ? PR_KEEP_ANIM  // running text: layar tetap nyala
+                         : (state == ST_PET && pet_keepAwake()) ? PR_KEEP_ANIM  // Pet: 5 mnt sejak tombol terakhir
                          : PR_NONE;
   power_update(keepAwake, !popupActive && !callShown && !gamePlaying && state != ST_OTA);
   // Layar mati = selalu light sleep + BLE; deep sleep otomatis hanya jadwal Malam (power_update)
@@ -336,6 +334,7 @@ static void loopBody() {
     case ST_PHONE:    next = phone_update(r); break;
     case ST_HOME:     next = home_update(r); break;
     case ST_TEXT:     next = text_update(r); break;
+    case ST_PET:      next = pet_update(r); break;
   }
   enterState(next);
   markAppValid();
@@ -347,7 +346,7 @@ static uint32_t loopIdleMs() {
     return power_buttonRecentlyChanged(500) ? LOOP_IDLE_NORMAL_MS
            : power_lightSleepActive()       ? LOOP_IDLE_LIGHT_SLEEP_MS
                                             : LOOP_IDLE_SCREEN_OFF_MS;
-  bool active = state == ST_GAME || state == ST_ANIM || state == ST_BOOT || state == ST_OTA || state == ST_TEXT ||
+  bool active = state == ST_GAME || state == ST_ANIM || state == ST_BOOT || state == ST_OTA || state == ST_TEXT || state == ST_PET ||
                 popupActive || callShown;
   return active ? LOOP_IDLE_ACTIVE_MS : LOOP_IDLE_NORMAL_MS;
 }
@@ -358,34 +357,12 @@ void loop() {
   uint32_t loopUs = micros() - t0;
 
 #if HEALTH_LOG
-  static uint32_t lastHealth = 0, loops = 0, maxLoopUs = 0;
+  static uint32_t lastHealth = 0;
   static bool slowInGame = false;
-  loops++;
-  maxLoopUs = max(maxLoopUs, loopUs);
-  // Rata-rata kerja loop saat layar mati (daya idle "Jaga notif")
-  static uint32_t offLoops = 0, offLoopUs = 0;
-  if (!power_screenOn()) { offLoops++; offLoopUs += loopUs; }
   if (state == ST_GAME && loopUs > LOOP_SLOW_WARN_MS * 1000UL) slowInGame = true;
   if (millis() - lastHealth >= HEALTH_LOG_MS) {
-    static const char *const STATE_NAMES[] = {"BOOT", "MENU", "GAME", "NAV", "ANIM", "SETTINGS", "OTA", "HP", "HOME", "TEKS"};
-    uint32_t elapsed = millis() - lastHealth;
     lastHealth = millis();
-    Serial.printf("[HEALTH] CPU %u MHz, loop %u/dtk, maks %.1f ms, flush maks %.1f ms | heap %u B, min %u B, "
-                  "stack sisa %u B | layar %s%s, state %s\n",
-                  getCpuFrequencyMhz(), (unsigned)(loops * 1000UL / max(elapsed, 1UL)), maxLoopUs / 1000.0f,
-                  power_takeFlushMaxUs() / 1000.0f, ESP.getFreeHeap(), ESP.getMinFreeHeap(),
-                  (unsigned)uxTaskGetStackHighWaterMark(NULL), power_screenOn() ? "ON" : "OFF",
-                  power_dimmed() ? " (redup)" : "", STATE_NAMES[state]);
-    if (slowInGame)
-      Serial.printf("[HEALTH] PERINGATAN: putaran loop > %d ms saat game\n", LOOP_SLOW_WARN_MS);
-    if (offLoops)
-      Serial.printf("[POWER] layar mati: kerja loop rata-rata %.2f ms\n", offLoopUs / 1000.0f / offLoops);
-#if LIGHT_SLEEP_SUPPORTED
-    Serial.printf("[PM] mode %s, light sleep %s, sebab bangun terakhir=%d\n", settings_pmModeName(),
-                  power_lightSleepActive() ? "aktif" : "ditahan", (int)esp_sleep_get_wakeup_cause());
-#endif
-    offLoops = offLoopUs = 0;
-    loops = maxLoopUs = 0;
+    if (slowInGame) dlog("loop lambat (game)");
     slowInGame = false;
   }
 #endif

@@ -115,7 +115,6 @@ bool text_set(const char *s, size_t n) {
   Preferences p;
   if (p.begin("rtext", false)) { p.putString("t", text); p.end(); }
   rebase(128);
-  Serial.printf("[TEKS] disimpan %u karakter\n", (unsigned)len);
   return true;
 }
 

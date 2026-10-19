@@ -4,6 +4,7 @@
 #include "ble_link.h"
 #include "power.h"
 #include "settings.h"
+#include "debuglog.h"
 
 // =====================================================================================
 // UUID & konstanta layanan Apple
@@ -24,6 +25,7 @@ static const uint16_t CTS_SERVICE = 0x1805;
 static const uint16_t CTS_CURRENT_TIME = 0x2A2B;
 static const uint16_t BATTERY_SERVICE = 0x180F;
 static const uint16_t BATTERY_LEVEL = 0x2A19;
+static const uint16_t GATT_SERVICE = 0x1801, GATT_SERVICE_CHANGED = 0x2A05;
 
 // ANCS
 static const uint8_t ANCS_EVENT_ADDED = 0, ANCS_EVENT_REMOVED = 2;
@@ -130,6 +132,18 @@ static const uint32_t PAIR_TIMEOUT_MS = 60000;  // tersambung tapi belum siap se
 static volatile uint16_t connHandle = 0;
 static NimBLEServer *server = nullptr;
 static NimBLERemoteCharacteristic *ancsControl = nullptr, *amsCommand = nullptr;
+// Satu client per koneksi: server->getClient() menghapus daftar layanan (deleteServices) setiap dipanggil,
+// jadi memanggilnya lagi (mis. baca jam) membuat ancsControl/amsCommand menunjuk memori yang sudah dibuang.
+static NimBLEClient *client = nullptr;
+
+// ANCS bisa belum ada saat pairing (iPhone baru menerbitkannya setelah "Bagikan Notifikasi Sistem" diizinkan)
+// dan bisa terbit/hilang kapan saja; iPhone memberi tahu lewat Service Changed. Cari ulang berkala.
+static const uint32_t ANCS_RETRY_MS = 5000;
+static const int ANCS_RETRY_MAX = 12;
+static bool ancsOk = false;
+static int ancsTries = 0;
+static uint32_t ancsRetryAt = 0;
+static volatile bool svcChanged = false;
 
 // Antrean kecil dari callback notify -> loop
 static const int NS_QUEUE = 8;
@@ -209,38 +223,42 @@ static void onBattery(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) 
   if (n >= 1) battery = d[0];
 }
 
+static void onServiceChanged(NimBLERemoteCharacteristic *, uint8_t *, size_t, bool) {
+  svcChanged = true;
+  power_loopWake();
+}
+
 // ---------------- callback server ----------------
 class IosServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *, NimBLEConnInfo &info) override {
     connHandle = info.getConnHandle();
     linkUpAt = millis();
     linkUp = true;
-    Serial.printf("[iOS] terhubung %s handle=%u, bonded=%d | layar %s, light sleep %s\n",
-                  info.getAddress().toString().c_str(), info.getConnHandle(), info.isBonded(),
-                  power_screenOn() ? "ON" : "OFF", power_lightSleepActive() ? "aktif" : "ditahan");
+    dlog("iOS sambung bond=%d", info.isBonded());
     // ANCS/AMS hanya bisa diakses setelah link terenkripsi: minta pairing/enkripsi
     NimBLEDevice::startSecurity(info.getConnHandle());
   }
   void onDisconnect(NimBLEServer *, NimBLEConnInfo &, int reason) override {
     linkUp = encrypted = setupPending = ready = false;
     ancsControl = amsCommand = nullptr;
+    client = nullptr;
+    ancsOk = false;
+    ancsTries = 0;
     ble_setRinging(nullptr, false);
     // NimBLE: alasan = 0x200 + kode HCI
     int hci = reason & 0xFF;
-    const char *why = hci == 0x13 ? "HP memutus" : hci == 0x08 ? "timeout (sinyal/jam tidur)" : hci == 0x3D ? "MIC failure (kunci salah)"
-                      : hci == 0x05 ? "auth failure (pairing ditolak)" : hci == 0x16 ? "diputus jam" : hci == 0x3E ? "gagal membuka koneksi" : "lain";
-    Serial.printf("[iOS] terputus alasan=%d (HCI 0x%02X %s) | layar %s, light sleep %s, advertising lagi\n", reason, hci, why,
-                  power_screenOn() ? "ON" : "OFF", power_lightSleepActive() ? "aktif" : "ditahan");
+    const char *why = hci == 0x13 ? "HP" : hci == 0x08 ? "timeout" : hci == 0x3D ? "kunci" : hci == 0x05 ? "auth"
+                      : hci == 0x16 ? "jam" : hci == 0x3E ? "gagal" : "lain";
+    dlog("iOS putus %02X %s", hci, why);
   }
   void onAuthenticationComplete(NimBLEConnInfo &info) override {
-    Serial.printf("[iOS] auth selesai: encrypted=%d bonded=%d authenticated=%d keysize=%u\n", info.isEncrypted(),
-                  info.isBonded(), info.isAuthenticated(), info.getSecKeySize());
+    dlog("iOS auth enc=%d bond=%d", info.isEncrypted(), info.isBonded());
     if (info.isEncrypted()) {
       encrypted = true;
       setupPending = true;  // discovery GATT dilakukan di loop (blocking, jangan di task BLE)
     } else {
       // Jangan biarkan link tak terenkripsi menggantung (iPhone berputar "Connecting" terus): putus
-      Serial.println("[iOS] pairing gagal / tidak terenkripsi, memutus koneksi");
+      dlog("iOS pairing gagal");
       server->disconnect(info.getConnHandle());
     }
   }
@@ -274,7 +292,6 @@ static void applyTime(const uint8_t *d, size_t n) {
   int y, mo, dd, h, mi, s;
   if (cts_parse(d, n, y, mo, dd, h, mi, s)) {
     ble_setLocalTime(s, mi, h, dd, mo, y);
-    Serial.printf("[iOS] jam disetel %04d-%02d-%02d %02d:%02d:%02d\n", y, mo, dd, h, mi, s);
   }
 }
 
@@ -287,28 +304,47 @@ bool ios_updateConnParams(uint16_t minItv, uint16_t maxItv, uint16_t latency, ui
 
 bool ios_readTime() {
   if (!ios_connected()) return false;
+  if (!client) return false;
   WdtPause wp;
-  NimBLEClient *c = server->getClient(connHandle);
-  if (!c) return false;
-  NimBLERemoteCharacteristic *ct = findChar(c, NimBLEUUID(CTS_SERVICE), NimBLEUUID(CTS_CURRENT_TIME));
+  NimBLERemoteCharacteristic *ct = findChar(client, NimBLEUUID(CTS_SERVICE), NimBLEUUID(CTS_CURRENT_TIME));
   if (!ct) return false;
   NimBLEAttValue v = ct->readValue();
   applyTime(v.data(), v.length());
   return true;
 }
 
+// Cari ANCS & subscribe. getService() bertanya lagi ke iPhone bila belum ada di cache, jadi aman diulang.
+static void setupAncs() {
+  WdtPause wp;
+  ancsTries++;
+  NimBLERemoteService *ancs = client->getService(ANCS_SERVICE);
+  if (ancs) {
+    NimBLERemoteCharacteristic *ns = ancs->getCharacteristic(ANCS_NOTIFICATION_SOURCE);
+    NimBLERemoteCharacteristic *ds = ancs->getCharacteristic(ANCS_DATA_SOURCE);
+    NimBLERemoteCharacteristic *cp = ancs->getCharacteristic(ANCS_CONTROL_POINT);
+    // Data Source dulu, agar jawaban atribut tidak terlewat
+    ancsOk = ds && ds->subscribe(true, onDataSource) && ns && ns->subscribe(true, onNotificationSource) && cp;
+    ancsControl = ancsOk ? cp : nullptr;
+  } else {
+    ancsOk = false;
+  }
+  if (ancsOk) dlog("ANCS aktif (ke-%d)", ancsTries);
+  else dlog("ANCS %s %d/%d", ancs ? "sub gagal" : "tak ada", ancsTries, ANCS_RETRY_MAX);
+  ancsRetryAt = millis() + ANCS_RETRY_MS;
+}
+
 static void setupGatt() {
   WdtPause wp;
-  NimBLEClient *c = server->getClient(connHandle);
-  if (!c) { Serial.println("[iOS] getClient gagal"); return; }
-  Serial.println("[iOS] terenkripsi, mencari layanan iPhone...");
+  client = server->getClient(connHandle);  // satu kali per koneksi (lihat catatan di atas)
+  NimBLEClient *c = client;
+  if (!c) { dlog("iOS getClient gagal"); return; }
 
   if (NimBLERemoteCharacteristic *ct = findChar(c, NimBLEUUID(CTS_SERVICE), NimBLEUUID(CTS_CURRENT_TIME))) {
     NimBLEAttValue v = ct->readValue();
     applyTime(v.data(), v.length());
     if (ct->canNotify()) ct->subscribe(true, onCurrentTime);
   } else {
-    Serial.println("[iOS] CTS tidak ditemukan (jam tidak sinkron)");
+    dlog("iOS CTS tak ada");
   }
 
   if (NimBLERemoteCharacteristic *bl = findChar(c, NimBLEUUID(BATTERY_SERVICE), NimBLEUUID(BATTERY_LEVEL))) {
@@ -317,17 +353,11 @@ static void setupGatt() {
     if (bl->canNotify()) bl->subscribe(true, onBattery);
   }
 
-  NimBLERemoteService *ancs = c->getService(ANCS_SERVICE);
-  if (ancs) {
-    NimBLERemoteCharacteristic *ns = ancs->getCharacteristic(ANCS_NOTIFICATION_SOURCE);
-    NimBLERemoteCharacteristic *ds = ancs->getCharacteristic(ANCS_DATA_SOURCE);
-    ancsControl = ancs->getCharacteristic(ANCS_CONTROL_POINT);
-    // Data Source dulu, agar jawaban atribut tidak terlewat
-    bool ok = ds && ds->subscribe(true, onDataSource) && ns && ns->subscribe(true, onNotificationSource) && ancsControl;
-    Serial.printf("[iOS] ANCS %s\n", ok ? "aktif" : "gagal subscribe");
-  } else {
-    Serial.println("[iOS] ANCS tidak ditemukan (izinkan 'Bagikan Notifikasi Sistem' di iPhone)");
-  }
+  // Service Changed: iPhone memberi tahu bila ANCS terbit/hilang (spesifikasi ANCS Apple)
+  if (NimBLERemoteCharacteristic *sc = findChar(c, NimBLEUUID(GATT_SERVICE), NimBLEUUID(GATT_SERVICE_CHANGED)))
+    sc->subscribe(false, onServiceChanged);  // false = indication
+
+  setupAncs();
 
   NimBLERemoteService *ams = c->getService(AMS_SERVICE);
   if (ams) {
@@ -336,7 +366,6 @@ static void setupGatt() {
     if (amsCommand) amsCommand->subscribe(true, nullptr);  // daftar perintah yang didukung (tidak dipakai)
     if (eu && eu->subscribe(true, onEntityUpdate)) {
       requestAmsAttributes(eu);
-      Serial.println("[iOS] AMS aktif");
     }
   }
   ready = true;
@@ -439,7 +468,6 @@ static void processDataSource() {
   String label;
   int icon;
   appLabel(appId, label, icon);
-  Serial.printf("[iOS] notif app=%s\n", appId);
   ble_pushNotification(icon, label.c_str(), title, msg);
 }
 
@@ -509,7 +537,7 @@ void ios_begin() {
   a->setMaxInterval(ADV_MAX_UNITS);
   a->start();
   running = true;
-  Serial.printf("[iOS] advertising sebagai \"%s\", bond tersimpan: %d\n", settings_bleName().c_str(), NimBLEDevice::getNumBonds());
+  dlog("iOS adv, bond %d", NimBLEDevice::getNumBonds());
 }
 
 void ios_stop() {
@@ -519,6 +547,9 @@ void ios_stop() {
   server = nullptr;
   linkUp = encrypted = setupPending = ready = false;
   ancsControl = amsCommand = nullptr;
+  client = nullptr;
+  ancsOk = false;
+  ancsTries = 0;
   reqCount = 0;
   reqOutstanding = callUid = NO_UID;
   dsLen = nsCount = euCount = 0;
@@ -546,12 +577,21 @@ void ios_loop() {
   }
   if (!ready) {
     if (linkUp && millis() - linkUpAt > PAIR_TIMEOUT_MS) {
-      Serial.println("[iOS] pairing/setup tidak selesai 60 dtk, memutus koneksi");
+      dlog("iOS setup >60s, putus");
       linkUpAt = millis();  // jangan kirim disconnect berulang sebelum onDisconnect datang
       server->disconnect(connHandle);
     }
     return;
   }
+  if (svcChanged) {  // ANCS bisa baru terbit / hilang: cari ulang dari awal
+    svcChanged = false;
+    dlog("iOS service changed");
+    ancsOk = false;
+    ancsControl = nullptr;
+    ancsTries = 0;
+    ancsRetryAt = millis();
+  }
+  if (!ancsOk && client && ancsTries < ANCS_RETRY_MAX && (int32_t)(millis() - ancsRetryAt) >= 0) setupAncs();
   processNotificationSource();
   processDataSource();
   sendNextAttrRequest();

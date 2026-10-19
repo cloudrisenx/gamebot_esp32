@@ -129,7 +129,6 @@ static void onHit(int p, float paddleX, bool up, float oppX, int fieldW) {
     smashReadyUntil[p] = 0;
     smashCoolUntil[p] = millis() + SMASH_COOLDOWN_MS;
     for (int i = 0; i < 3; i++) { trailX[i] = bx; trailY[i] = by; }
-    Serial.printf("[PONG] smash P%d\n", p + 1);
     return;
   }
   bounce(paddleX, up);

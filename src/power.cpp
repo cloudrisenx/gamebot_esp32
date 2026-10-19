@@ -10,6 +10,7 @@
 #include <esp_pm.h>
 #include "settings.h"
 #include "ble_link.h"
+#include "debuglog.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -32,7 +33,6 @@ void power_begin() {
   esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
   wokeByTimer = cause == ESP_SLEEP_WAKEUP_TIMER;
   wokeFromSleep = cause == ESP_SLEEP_WAKEUP_GPIO || wokeByTimer;
-  if (wokeFromSleep) Serial.printf("[POWER] bangun: %s\n", wokeByTimer ? "timer" : "tombol");
 
   // TWDT sudah diinisialisasi core Arduino untuk idle task; init ulang memperbarui timeout
 #if ESP_IDF_VERSION_MAJOR >= 5
@@ -61,7 +61,7 @@ void power_begin() {
   pm.light_sleep_enable = true;
   esp_err_t e = esp_pm_configure(&pm);
   esp_sleep_enable_gpio_wakeup();
-  Serial.printf("[PM] configure %u-%u MHz, light sleep: %s\n", pm.min_freq_mhz, pm.max_freq_mhz, esp_err_to_name(e));
+  if (e != ESP_OK) dlog("PM gagal %s", esp_err_to_name(e));
 #endif
 }
 
@@ -106,8 +106,6 @@ static void setScreen(bool on, PowerReason reason, const char *detail = nullptr)
     screenOffAt = millis();
   }
   display.ssd1306_command(on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
-  Serial.printf("[POWER] layar %s alasan=%s%s%s\n", on ? "ON" : "OFF", REASON_NAMES[reason],
-                detail ? " " : "", detail ? detail : "");
 }
 
 static bool dimmed = false;
@@ -185,8 +183,6 @@ static void enterDeepSleep(uint32_t timerMin = 0) {
     gpio_pulldown_dis(p);
   }
   esp_deep_sleep_enable_gpio_wakeup(BIT(WAKE_PIN_UP) | BIT(WAKE_PIN_DOWN), ESP_GPIO_WAKEUP_GPIO_LOW);
-  Serial.println("Deep sleep...");
-  Serial.flush();
   esp_deep_sleep_start();
 }
 
@@ -236,7 +232,6 @@ void power_update(PowerReason keepAwake, bool sleepAllowed) {
     uint32_t mins = settings_nightOn() ? power_nightMinutesLeft(nowMin, settings_nightStartMin(), settings_nightEndMin()) : 0;
     if (mins) {
       uint32_t endMin = (nowMin + mins) % (24 * 60);
-      Serial.printf("[POWER] malam: tidur sampai %02u:%02u (%u mnt)\n", endMin / 60, endMin % 60, mins);
       enterDeepSleep(mins);
     }
   }
@@ -289,8 +284,6 @@ void power_lightSleep(bool allowed) {
     else esp_pm_lock_acquire(cpuLock);
     cpuFree = wantCpu;
   }
-  Serial.printf("[PM] mode %s: DFS %s, light sleep %s\n", settings_pmModeName(), cpuFree ? "ON" : "off",
-                lsActive ? "ON" : "off");
 #else
   (void)allowed;
 #endif

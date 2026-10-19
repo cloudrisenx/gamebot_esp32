@@ -63,10 +63,6 @@ static void drawFrame() {
 static void logStats() {
   uint32_t elapsed = millis() - statsStart;
   if (elapsed < STATS_MS) return;
-  if (!paused)
-    Serial.printf("[ANIM] fps target=%.1f aktual=%.1f decode maks=%.1f ms flush maks=%.1f ms\n",
-                  frames_fps() * SPEED_X2[speedIdx] / 2.0f, statsFrames * 1000.0f / elapsed,
-                  statsDecodeMaxUs / 1000.0f, statsFlushMaxUs / 1000.0f);
   statsStart = millis();
   statsFrames = statsDecodeMaxUs = statsFlushMaxUs = 0;
 }

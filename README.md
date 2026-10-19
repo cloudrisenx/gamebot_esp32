@@ -45,7 +45,8 @@ Libraries are installed automatically by PlatformIO from `lib_deps` in [`platfor
 
 **Home & clock**
 - Large clock, date, BT status + phone battery, unread notification count, weather / active navigation.
-- Buttons: L = Notifications, R = Animation (▶ icon; **hold R** = Music), OK = Menu, BACK = screen off.
+- Buttons: L = Notifications, R = **Pet** (cat icon; **hold R** = Animation, **tap R 3x** = Music), OK = Menu,
+  BACK = screen off. A single tap on R opens Pet after ±0.3 s (the watch waits to see whether a 2nd/3rd tap follows).
 - Time is synced from the phone (Chronos / iPhone CTS) on every connection; **Settings > Clock**: sync now or set manually.
 - Last time & weather are saved: after power loss/restart the clock shows an estimate (marked `~`) instead of `--:--`.
 
@@ -56,6 +57,14 @@ Libraries are installed automatically by PlatformIO from `lib_deps` in [`platfor
 - Weather (Android), turn-by-turn Google Maps navigation (Android).
 - Camera remote (Bluetooth HID "Volume Up") with a timer.
 - **Phone mode** (Android / iPhone) is set in Menu → Phone. iPhone mode hides Navigation and Weather (iPhone does not send that data).
+
+**Pet** (tap R on Home): a cat that lives on the screen — eyes, ears, nose, mouth and whiskers, plus an 8-bit
+full-body cat for some activities. With no buttons it acts on its own (looks around, slow-blinks, grooms, watches a bird,
+walks, chases its tail, stretches, plays alone, zoomies, hides and peeks from the screen edges, falls asleep for up to
+3 minutes). Tap L/R = glance, tap OK = pet it (3x fast = tickle, 6x = it runs away annoyed); **hold L** = feed,
+**hold R** = play (the face turns into the 8-bit cat chasing a toy mouse), **hold OK** = stroke (purr, kneading).
+BACK = Home. The screen stays on for 5 minutes after the last button, then the normal screen-off rule applies
+(the pet freezes while the screen is off). Details: [docs/PET.md](docs/PET.md).
 
 **Animation**: boot & menu animation from the `frames` partition (FRM1 / compressed FRM2), made with
 `tools/make_frames.py` from GIF / PNG / old frame headers, or uploaded from the OTA page. On the Animation screen:
@@ -91,7 +100,7 @@ WhatsApp pop-ups are held while in the Game menu (they still go into the history
 screen timeout, power save, night, brightness, **OLED I2C** (800/400/200 kHz) & **OLED test** (test pattern + I2C error
 stats), boot animation, reset hi-scores, sleep now, **Restart**, **Flash mode** (reboots into download mode for USB
 flashing without the BOOT button), **Reset data** (erases all settings, hi-scores, saved time, text and pairing;
-the animation stays), OTA update, iPhone guide, remove pairing, info.
+the animation stays), OTA update, iPhone guide, remove pairing, **Debug log** (last 10 log lines; the firmware has no Serial output), info.
 
 **OTA update**: Settings > OTA update starts the WiFi AP `cute_device_OTA`; connect your phone and open
 `http://192.168.4.1` (or scan the QR code on screen) to upload `firmware_ota.bin` or `frames.bin`

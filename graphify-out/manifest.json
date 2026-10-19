@@ -1,8 +1,8 @@
 {
   "src/anim.cpp": {
-    "mtime": 1792027441.9587963,
-    "seen": 1792406791.0868514,
-    "ast_hash": "219e0f17bbea131ebc63946d871e48df",
+    "mtime": 1792423674.4791994,
+    "seen": 1792423964.164832,
+    "ast_hash": "488e24370b10b8f79f3b0393f1293520",
     "semantic_hash": ""
   },
   "src/anim.h": {
@@ -12,9 +12,9 @@
     "semantic_hash": ""
   },
   "src/ble_link.cpp": {
-    "mtime": 1792078725.3673964,
-    "seen": 1792406791.0868514,
-    "ast_hash": "ed957d26488696e1b25ea7e017f4e928",
+    "mtime": 1792423700.7829223,
+    "seen": 1792423964.164832,
+    "ast_hash": "346be28082d3e801a344630c7bf5f63c",
     "semantic_hash": ""
   },
   "src/ble_link.h": {
@@ -36,9 +36,9 @@
     "semantic_hash": ""
   },
   "src/clockstore.cpp": {
-    "mtime": 1792027441.9572687,
-    "seen": 1792406791.0868514,
-    "ast_hash": "3dfc6e3f2652c9ffcc190cecc0e0fe6e",
+    "mtime": 1792423674.4797153,
+    "seen": 1792423964.164832,
+    "ast_hash": "6f786ec6aeee882843b2f679397cc0b0",
     "semantic_hash": ""
   },
   "src/clockstore.h": {
@@ -48,9 +48,9 @@
     "semantic_hash": ""
   },
   "src/frames_store.cpp": {
-    "mtime": 1791997678.036117,
-    "seen": 1792026861.732622,
-    "ast_hash": "072664abb05fd7aca5642bed7e489137",
+    "mtime": 1792423645.489001,
+    "seen": 1792423964.164832,
+    "ast_hash": "245102537d2bcccde31a0c4a480393ad",
     "semantic_hash": ""
   },
   "src/frames_store.h": {
@@ -84,9 +84,9 @@
     "semantic_hash": ""
   },
   "src/game_duel.cpp": {
-    "mtime": 1792027506.7348962,
-    "seen": 1792406791.0868514,
-    "ast_hash": "da6618ddc997d67af9a380956a9f952f",
+    "mtime": 1792423645.4910336,
+    "seen": 1792423964.164832,
+    "ast_hash": "b3a9ebcf26789f6cd7e33b4da35eca30",
     "semantic_hash": ""
   },
   "src/game_duel.h": {
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "src/game_hitung.cpp": {
-    "mtime": 1792027506.7338512,
-    "seen": 1792406791.0868514,
-    "ast_hash": "7784271a687eac1d878a5eaee3d46521",
+    "mtime": 1792423645.4925609,
+    "seen": 1792423964.164832,
+    "ast_hash": "0c0817477ed10dc905b6e2fc44186837",
     "semantic_hash": ""
   },
   "src/game_hitung.h": {
@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "src/game_pong.cpp": {
-    "mtime": 1792027506.7364674,
-    "seen": 1792406791.0868514,
-    "ast_hash": "d263773031f55916918d57c9d7c66390",
+    "mtime": 1792423645.4940834,
+    "seen": 1792423964.164832,
+    "ast_hash": "fefab09fee7ee46575b7f774758e9204",
     "semantic_hash": ""
   },
   "src/game_pong.h": {
@@ -156,21 +156,21 @@
     "semantic_hash": ""
   },
   "src/home.cpp": {
-    "mtime": 1792027441.9562294,
-    "seen": 1792406791.0868514,
-    "ast_hash": "4fecdccbf5a3ce883dea059cf57a6a1d",
+    "mtime": 1792413345.2526371,
+    "seen": 1792423964.164832,
+    "ast_hash": "dc80f515162cbb8c15b99bf6b6581022",
     "semantic_hash": ""
   },
   "src/home.h": {
-    "mtime": 1791496268.4988594,
-    "seen": 1791607128.0068552,
-    "ast_hash": "61a045a978f52746071ee76d1400860b",
+    "mtime": 1792413351.206117,
+    "seen": 1792423964.164832,
+    "ast_hash": "ec349915f1e61e0cd10c3a31b38d9133",
     "semantic_hash": ""
   },
   "src/ios_link.cpp": {
-    "mtime": 1792406328.606773,
-    "seen": 1792406791.0868514,
-    "ast_hash": "87630b3aa2c0d4f332306aea89dfd4a4",
+    "mtime": 1792423606.5540113,
+    "seen": 1792423964.164832,
+    "ast_hash": "63a71f1b50d45120c42a3cb32232e1eb",
     "semantic_hash": ""
   },
   "src/ios_link.h": {
@@ -180,21 +180,21 @@
     "semantic_hash": ""
   },
   "src/main.cpp": {
-    "mtime": 1792165212.440398,
-    "seen": 1792406791.0868514,
-    "ast_hash": "7d0f1c87d7df19c62c6746d5389367ef",
+    "mtime": 1792423700.7829223,
+    "seen": 1792423964.164832,
+    "ast_hash": "c32762c17c3f0a98684d250b6d0209e2",
     "semantic_hash": ""
   },
   "src/menu.cpp": {
-    "mtime": 1792078560.0716915,
-    "seen": 1792406791.0868514,
-    "ast_hash": "ebb9da38b594e2a0fa1b7b81de06a7b9",
+    "mtime": 1792423674.4812238,
+    "seen": 1792423964.164832,
+    "ast_hash": "b3b12d059abf2e30a98cfa33a7dcf84f",
     "semantic_hash": ""
   },
   "src/menu.h": {
-    "mtime": 1791994788.402781,
-    "seen": 1792026861.732622,
-    "ast_hash": "e301b40d3b46537aed31443d00b03aec",
+    "mtime": 1792413282.16075,
+    "seen": 1792423964.164832,
+    "ast_hash": "65c891ecf9958c26201822085ce77ba0",
     "semantic_hash": ""
   },
   "src/ota.cpp": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/phone.cpp": {
-    "mtime": 1792027388.229271,
-    "seen": 1792406791.0868514,
-    "ast_hash": "e4c618a17b7415ca71e1f0e69882b51a",
+    "mtime": 1792423674.4827454,
+    "seen": 1792423964.164832,
+    "ast_hash": "0b9f6ce48f993bbfe4a67ff8585103f7",
     "semantic_hash": ""
   },
   "src/phone.h": {
@@ -222,9 +222,9 @@
     "semantic_hash": ""
   },
   "src/power.cpp": {
-    "mtime": 1792027441.9572687,
-    "seen": 1792406791.0868514,
-    "ast_hash": "720815ce7f6780d1c5e73d9cd0c98215",
+    "mtime": 1792423674.4812238,
+    "seen": 1792423964.164832,
+    "ast_hash": "b48ed88ad7e2a5e57f6a1dd7d7703825",
     "semantic_hash": ""
   },
   "src/power.h": {
@@ -234,9 +234,9 @@
     "semantic_hash": ""
   },
   "src/remote_hid.cpp": {
-    "mtime": 1792406102.5165453,
-    "seen": 1792406791.0868514,
-    "ast_hash": "d884f891f2e4a8a9c914b7ba86a2b4da",
+    "mtime": 1792423700.7829223,
+    "seen": 1792423964.164832,
+    "ast_hash": "4e85b732ef17d4c88bf9f328da65a07f",
     "semantic_hash": ""
   },
   "src/remote_hid.h": {
@@ -246,9 +246,9 @@
     "semantic_hash": ""
   },
   "src/screen.cpp": {
-    "mtime": 1791612649.536322,
-    "seen": 1791612735.32295,
-    "ast_hash": "7155f4aa041c149c53d79e0e90d7a664",
+    "mtime": 1792423645.523811,
+    "seen": 1792423964.164832,
+    "ast_hash": "c7477e23d66257123990e430a40e3734",
     "semantic_hash": ""
   },
   "src/screen.h": {
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "src/settings.cpp": {
-    "mtime": 1792027441.9587963,
-    "seen": 1792406791.0868514,
-    "ast_hash": "65db481ba10621578c5ad1c8cde69d0e",
+    "mtime": 1792423645.5243177,
+    "seen": 1792423964.164832,
+    "ast_hash": "bf435892a11b04877f2d2215087acd2a",
     "semantic_hash": ""
   },
   "src/settings.h": {
@@ -270,15 +270,15 @@
     "semantic_hash": ""
   },
   "src/version.h": {
-    "mtime": 1792406595.0113237,
-    "seen": 1792406791.0868514,
-    "ast_hash": "9934c61d85bb7d3187d7d6581c9c6d9b",
+    "mtime": 1792423709.428696,
+    "seen": 1792423964.164832,
+    "ast_hash": "eb5d0ce193e592d56c99a34a2bc5af85",
     "semantic_hash": ""
   },
   "src/text_screen.cpp": {
-    "mtime": 1792087036.9911678,
-    "seen": 1792406791.0868514,
-    "ast_hash": "d75a1aaba30446d07f4f2b307e2c2c9a",
+    "mtime": 1792423645.5258396,
+    "seen": 1792423964.164832,
+    "ast_hash": "27954060e8a57c708e15c0f0f4048f06",
     "semantic_hash": ""
   },
   "src/text_screen.h": {
@@ -297,6 +297,42 @@
     "mtime": 1792027264.6497858,
     "seen": 1792406791.0868514,
     "ast_hash": "16fa0ef4f86dd6af8b33005fc92990ef",
+    "semantic_hash": ""
+  },
+  "src/pet_core.cpp": {
+    "mtime": 1792413171.3736868,
+    "seen": 1792423964.164832,
+    "ast_hash": "8b8f09ae6ff5ef5e8bf58dbee7c451ea",
+    "semantic_hash": ""
+  },
+  "src/pet_core.h": {
+    "mtime": 1792413171.3721616,
+    "seen": 1792423964.164832,
+    "ast_hash": "c3c9590ce781ac90cb895da917855c2a",
+    "semantic_hash": ""
+  },
+  "src/debuglog.cpp": {
+    "mtime": 1792423522.784472,
+    "seen": 1792423964.164832,
+    "ast_hash": "1411752b9a3d14704484cc9fa3608131",
+    "semantic_hash": ""
+  },
+  "src/debuglog.h": {
+    "mtime": 1792423522.7839675,
+    "seen": 1792423964.164832,
+    "ast_hash": "b82669a02eecccb04b31478795f30339",
+    "semantic_hash": ""
+  },
+  "src/pet.cpp": {
+    "mtime": 1792413268.5342953,
+    "seen": 1792423964.164832,
+    "ast_hash": "15e1793d11175569a4260f848d38b322",
+    "semantic_hash": ""
+  },
+  "src/pet.h": {
+    "mtime": 1792413267.422355,
+    "seen": 1792423964.164832,
+    "ast_hash": "c3c6e6e375faab5b39d25c2db65df90c",
     "semantic_hash": ""
   }
 }

@@ -5,6 +5,7 @@
 #include <esp_mac.h>
 #include "version.h"
 #include "settings.h"
+#include "debuglog.h"
 
 static const unsigned REMOTE_ADV_NAME_MAX = 18;
 static String remoteName() { return settings_bleName() + " Remote"; }
@@ -125,12 +126,12 @@ static bool inHid() {
 // store dikembalikan ke isi semula. Host NimBLE harus sudah berjalan (setelah NimBLEDevice::init).
 static bool swapBonds(const char *saveNs, const char *loadNs) {
   BondSet &cur = setA, &next = setB;
-  if (!readStore(cur)) { Serial.println("[BOND] gagal membaca store"); return false; }
-  if (!nvsSave(saveNs, cur)) { Serial.printf("[BOND] gagal simpan ke %s\n", saveNs); return false; }
-  if (!nvsLoad(loadNs, next)) { Serial.printf("[BOND] data %s rusak\n", loadNs); return false; }
+  if (!readStore(cur)) { dlog("BOND baca gagal"); return false; }
+  if (!nvsSave(saveNs, cur)) { dlog("BOND simpan gagal"); return false; }
+  if (!nvsLoad(loadNs, next)) { dlog("BOND %s rusak", loadNs); return false; }
   if (!clearStore(cur)) {
     writeStore(cur);  // pulihkan entri yang terlanjur terhapus
-    Serial.println("[BOND] gagal mengosongkan store, dipulihkan");
+    dlog("BOND kosong gagal");
     return false;
   }
   if (!writeStore(next)) {
@@ -141,10 +142,9 @@ static bool swapBonds(const char *saveNs, const char *loadNs) {
     // berikutnya mulai dari set kosong yang sah, bukan gagal berulang dengan data yang sama.
     Preferences pc;
     if (pc.begin(loadNs, false)) { pc.clear(); pc.end(); }
-    Serial.printf("[BOND] gagal menulis %s, store dipulihkan, data %s dihapus\n", loadNs, loadNs);
+    dlog("BOND tulis gagal");
     return false;
   }
-  Serial.printf("[BOND] %s -> NVS (%d bond), NVS %s -> store (%d bond)\n", saveNs, cur.nOur, loadNs, next.nOur);
   return true;
 }
 
@@ -167,12 +167,12 @@ static volatile bool restartPending = false;  // reset software gagal berkali-ka
 
 class RemoteCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer *server, NimBLEConnInfo &info) override {
-    Serial.printf("[REMOTE] connect %s\n", info.getIdAddress().toString().c_str());
+    dlog("CAM sambung");
     // HP baru + memori bond Remote penuh: NimBLE akan menghapus bond TERTUA saat menyimpan
     // bond baru. Tolak sebelum pairing terjadi.
     if (!NimBLEDevice::isBonded(info.getIdAddress()) && NimBLEDevice::getNumBonds() >= CONFIG_BT_NIMBLE_MAX_BONDS) {
       rejectedFull = true;
-      Serial.println("[REMOTE] ditolak: memori pairing penuh");
+      dlog("CAM tolak: penuh");
       server->disconnect(info.getConnHandle());
       return;
     }
@@ -183,7 +183,7 @@ class RemoteCallbacks : public NimBLEServerCallbacks {
     // connect-putus-connect lagi saat memasang HID, atau HP tidur): jangan reset/restart jam
     bool wasReady = connected && !info.isBonded();
     connected = false;
-    Serial.printf("[REMOTE] disconnect %s reason=%d\n", info.getIdAddress().toString().c_str(), reason);
+    dlog("CAM putus %02X", reason & 0xFF);
     if (wasReady && running && !bondError && !rejectedFull) {
       if (resetCount < MAX_AUTO_RESET) {
         resetCount++;
@@ -198,7 +198,7 @@ class RemoteCallbacks : public NimBLEServerCallbacks {
   }
   void onAuthenticationComplete(NimBLEConnInfo &info) override {
     connected = info.isEncrypted();
-    Serial.printf("[REMOTE] auth %s %s\n", info.getIdAddress().toString().c_str(), connected ? "terenkripsi" : "gagal enkripsi");
+    dlog("CAM auth %s", connected ? "ok" : "gagal");
   }
 };
 static RemoteCallbacks callbacks;
@@ -218,7 +218,6 @@ void remote_recoverBonds() {
   NimBLEDevice::init("");
   if (swapBonds("bond_hid", "bond_main")) setInHid(false);
   NimBLEDevice::deinit(true);
-  Serial.println("[BOND] pemulihan setelah reset di mode Remote");
 }
 
 // Nyalakan server HID + advertising. Dipisah dari remote_begin() supaya bisa dipanggil ulang
@@ -232,6 +231,7 @@ static void startAdvertising() {
   NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
   NimBLEServer *server = NimBLEDevice::createServer();
   server->setCallbacks(&callbacks, false);
+  server->advertiseOnDisconnect(true);  // default NimBLE = false: tanpa ini Android tak bisa sambung lagi setelah putus
 
   hid = new NimBLEHIDDevice(server);
   consumerIn = hid->getInputReport(REPORT_CONSUMER);
@@ -254,10 +254,7 @@ static void startAdvertising() {
   adv->setAdvertisementData(data);
   bool advOk = adv->start();
   connected = rejectedFull = false;
-  Serial.printf("[REMOTE] alamat %s (%s), adv %s, payload %u/31 B, bond %d/%d\n",
-                NimBLEDevice::getAddress().toString().c_str(), addrOk ? "random static" : "GAGAL set random",
-                advOk ? "OK" : "GAGAL", (unsigned)data.getPayload().size(), NimBLEDevice::getNumBonds(),
-                CONFIG_BT_NIMBLE_MAX_BONDS);
+  dlog("CAM adv %s bond %d", advOk ? "ok" : "GAGAL", NimBLEDevice::getNumBonds());
 }
 
 void remote_begin() {
@@ -281,13 +278,12 @@ void remote_begin() {
 
 void remote_update() {
   if (restartPending) {
-    Serial.println("[REMOTE] reset BLE software gagal berkali-kali, restart total chip...");
-    delay(50);  // beri waktu Serial.flush implisit sebelum restart
+    dlog("CAM restart chip");
     ESP.restart();
   }
   if (!running || bondError || !resetAtMs || (int32_t)(millis() - resetAtMs) < 0) return;
   resetAtMs = 0;
-  Serial.printf("[REMOTE] reset BLE otomatis setelah pairing gagal (percobaan %d/%d)\n", resetCount, MAX_AUTO_RESET);
+  dlog("CAM reset BLE %d/%d", resetCount, MAX_AUTO_RESET);
   delete hid;
   hid = nullptr;
   consumerIn = nullptr;

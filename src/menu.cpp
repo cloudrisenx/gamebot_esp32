@@ -14,6 +14,7 @@
 
 #include "version.h"
 #include "lang.h"
+#include "debuglog.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -97,18 +98,18 @@ static int visibleMenu(int *idx) {
 
 enum SettingItem {
   SI_WA, SI_BT, SI_BT_RESTART, SI_CLOCK, SI_LANG, SI_SCREEN, SI_PM_MODE, SI_NIGHT, SI_CONTRAST, SI_OLED_I2C, SI_OLED_TEST, SI_BOOTANIM, SI_RESET_HI, SI_SLEEP_NOW, SI_RESTART, SI_FLASH_MODE, SI_RESET_DATA, SI_OTA,
-  SI_GUIDE, SI_UNPAIR, SI_INFO,
+  SI_GUIDE, SI_UNPAIR, SI_DEBUG, SI_INFO,
   SI_COUNT
 };
 static const char *SETTING_LABELS[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Jam", "Bahasa", "Layar mati", "Mode hemat", "Malam", "Kecerahan", "OLED I2C", "Uji OLED",
   "Animasi boot", "Reset hi-score", "Tidur sekarang", "Restart", "Mode flash", "Reset data", "Update OTA",
-  "Panduan iPhone", "Hapus pairing HP", "Info"
+  "Panduan iPhone", "Hapus pairing HP", "Debug log", "Info"
 };
 static const char *SETTING_LABELS_EN[SI_COUNT] = {
   "Notif pop-up", "Bluetooth", "Restart BT", "Clock", "Language", "Screen off", "Power save", "Night", "Brightness", "OLED I2C", "OLED test",
   "Boot animation", "Reset hi-score", "Sleep now", "Restart", "Flash mode", "Reset data", "OTA update",
-  "iPhone guide", "Forget phones", "Info"
+  "iPhone guide", "Forget phones", "Debug log", "Info"
 };
 
 // Panduan pairing iPhone (maks 21 karakter/baris, sama dengan docs/IPHONE_GUIDE.md)
@@ -176,6 +177,8 @@ static bool oledOverlay = true;
 static uint32_t oledOkDownAt = 0;
 static int oledBoxX = 10, oledBoxY = 20, oledBoxDx = 3, oledBoxDy = 2;
 static bool guideOpen = false;
+static bool logOpen = false;  // Setting > Debug log
+static int logTop = 0;
 static int guideTop = 0;
 static bool otaRequested = false;
 static uint32_t resetConfirmUntil = 0;
@@ -543,6 +546,7 @@ static String settingValue(int item) {
       return String(GAME_COUNT) + T(" game", " games");
     case SI_OTA:
     case SI_GUIDE:
+    case SI_DEBUG:
     case SI_INFO:     return ">";
     default:          return "";
   }
@@ -554,6 +558,7 @@ static void activateSetting(int item) {
     case SI_LANG:     settings_setLang(settings_lang() + 1); break;
     case SI_BT:       settings_setBt(!settings_bt()); break;
     case SI_GUIDE:    guideOpen = true; guideTop = 0; break;
+    case SI_DEBUG:    logOpen = true; logTop = max(0, dlog_count() - GUIDE_ROWS); break;
     case SI_BT_RESTART:
       if (millis() < btRestartConfirmUntil) {
         btRestartConfirmUntil = 0;
@@ -610,9 +615,7 @@ static void activateSetting(int item) {
     case SI_RESTART:
       if (millis() < restartConfirmUntil) {
         drawFullMessage("Restart...", nullptr);
-        Serial.println("[SETTING] restart");
         clock_save("restart");
-        Serial.flush();
         ESP.restart();
       }
       restartConfirmUntil = millis() + RESET_CONFIRM_MS;
@@ -622,10 +625,8 @@ static void activateSetting(int item) {
         // Reboot ke ROM download mode (sama dengan menahan BOOT): flash lewat USB tanpa tombol.
         // Keluar dari download mode: flash/esptool hard reset.
         drawFullMessage(T("Mode flash", "Flash mode"), "flash via USB");
-        Serial.println("[SETTING] reboot ke mode download (flash USB)");
         clock_save("flash");
         ble_shutdown();
-        Serial.flush();
         delay(1000);
         display.ssd1306_command(SSD1306_DISPLAYOFF);  // layar gelap = sudah bukan aplikasi
         REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
@@ -639,11 +640,9 @@ static void activateSetting(int item) {
         // Hapus SELURUH partisi NVS: setting, hi-score, mode game, jam & cuaca tersimpan, teks berjalan,
         // timer kamera, status & data pairing Bluetooth. Partisi animasi (frames) dan firmware tidak tersentuh.
         drawFullMessage(T("Mereset...", "Resetting..."), T("data dihapus", "data erased"));
-        Serial.println("[SETTING] reset data: hapus semua NVS lalu restart");
         ble_shutdown();
         esp_err_t err = nvs_flash_erase();
-        Serial.printf("[SETTING] nvs_flash_erase: %s\n", esp_err_to_name(err));
-        Serial.flush();
+        dlog("reset data %s", esp_err_to_name(err));
         delay(300);
         ESP.restart();
       }
@@ -733,6 +732,24 @@ static void drawGuide() {
   // Penanda scroll di kanan
   if (guideTop > 0) display.fillTriangle(124, 13, 127, 13, 125, 11, SSD1306_WHITE);
   if (guideTop + GUIDE_ROWS < GUIDE_COUNT) display.fillTriangle(124, 60, 127, 60, 125, 62, SSD1306_WHITE);
+  oled_flush();
+}
+
+// Debug log: 10 baris terakhir (debuglog.cpp), 5 baris per layar, terbaru di bawah
+static void drawLog() {
+  display.clearDisplay();
+  drawHeader(T("DEBUG LOG", "DEBUG LOG"));
+  display.setTextColor(SSD1306_WHITE);
+  int n = dlog_count();
+  if (!n) { display.setCursor(0, 23); display.print(T("Belum ada log", "No log yet")); }
+  char line[DLOG_COLS + 1];
+  for (int i = 0; i < GUIDE_ROWS && logTop + i < n; i++) {
+    dlog_line(logTop + i, line, sizeof(line));
+    display.setCursor(0, 13 + i * 10);
+    display.print(line);
+  }
+  if (logTop > 0) display.fillTriangle(124, 13, 127, 13, 125, 11, SSD1306_WHITE);
+  if (logTop + GUIDE_ROWS < n) display.fillTriangle(124, 60, 127, 60, 125, 62, SSD1306_WHITE);
   oled_flush();
 }
 
@@ -845,7 +862,7 @@ static bool clockEditorUpdate(bool redraw) {
   uint32_t now = millis();
   if (btn_pressed(BTN_BACK)) {
     if (clockField > 0) clockField--;  // BACK: isian sebelumnya; di isian pertama = batal
-    else { clockOpen = false; Serial.println("[JAM] setel manual dibatalkan"); return false; }
+    else { clockOpen = false; return false; }
     redraw = true;
   }
   bool l = btn_pressed(leftBtn), r = btn_pressed(rightBtn);
@@ -876,7 +893,6 @@ static bool clockEditorUpdate(bool redraw) {
     if (ble_takeSyncDone(withTime) && !(clock_lastSync() != syncBefore && clock_source() == CLK_SYNC)) {
       // Chronos menjawab "sinkron selesai" tanpa paket jam baru: jam sudah sinkron sejak tersambung
       // (sumber Sinkron) -> berhasil; bila sumber lain, HP memang tidak mengirim jam
-      Serial.printf("[JAM] sinkron HP selesai, paket jam %s\n", withTime ? "ada" : "tidak dikirim");
       syncState = clock_source() == CLK_SYNC ? SYNC_OK : SYNC_NOTIME;
       redraw = true;
     } else if (clock_lastSync() != syncBefore && clock_source() == CLK_SYNC) {
@@ -885,7 +901,6 @@ static bool clockEditorUpdate(bool redraw) {
       redraw = true;
     } else if (now - syncAt >= SYNC_WAIT_MS) {
       syncState = SYNC_FAIL;
-      Serial.println("[JAM] sinkron HP: tidak ada balasan 10 dtk");
       redraw = true;
     }
   }
@@ -1083,6 +1098,21 @@ AppState settings_screen_update(bool redraw) {
     }
   }
 
+  if (logOpen) {
+    if (btn_pressed(BTN_BACK)) { logOpen = false; redraw = true; }
+    else {
+      int n = dlog_count();
+      if (btn_pressed(BTN_OK)) { dlog_clear(); logTop = 0; redraw = true; }  // OK = hapus log
+      if (btn_pressed(BTN_UP) && logTop > 0) { logTop--; redraw = true; }
+      if (btn_pressed(BTN_DOWN) && logTop + GUIDE_ROWS < n) { logTop++; redraw = true; }
+      buttons_clear();
+      static unsigned shownSeq = ~0u;  // log baru masuk saat layar terbuka: gambar ulang
+      if (dlog_seq() != shownSeq) { shownSeq = dlog_seq(); redraw = true; }
+      if (redraw) drawLog();
+      return ST_SETTINGS;
+    }
+  }
+
   if (infoOpen) {
     if (btn_pressed(BTN_BACK)) { infoOpen = false; redraw = true; }
     else {
@@ -1107,6 +1137,7 @@ AppState settings_screen_update(bool redraw) {
     if (power_sleepPending()) { drawSleepMessage(); return ST_SETTINGS; }
     if (infoOpen) { marquee_reset(); redraw_needed(infoWatch, true, infoSignature); drawInfo(); return ST_SETTINGS; }
     if (guideOpen) { drawGuide(); return ST_SETTINGS; }
+    if (logOpen) { drawLog(); return ST_SETTINGS; }
     if (clockOpen) { drawClockEditor(); return ST_SETTINGS; }
     if (oledTestOpen) { drawOledTest(); return ST_SETTINGS; }
     if (nightOpen) { drawNightEditor(); return ST_SETTINGS; }

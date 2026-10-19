@@ -298,8 +298,6 @@ bool duel_update(bool redraw) {
       s2 = mode == MODE_2P ? (btn_pressTimeUs(BTN_BACK, s2), s2) : (shots[1].valid ? shots[1].us : 0);
       float r1 = s1 && fireUs ? ((int64_t)(s1 - fireUs)) / 1000.0f : 0, r2 = s2 && fireUs ? ((int64_t)(s2 - fireUs)) / 1000.0f : 0;
       float diff = s1 && s2 ? fabsf(((int64_t)(s1 - s2)) / 1000.0f) : 0;
-      Serial.printf("[DUEL] P1 %.1f ms, P2 %.1f ms, selisih %.1f ms -> %s\n", r1, r2, diff,
-                    v.kind == V_TIE ? "SERI" : v.kind == V_FOUL ? "CURANG" : "MENANG");
     }
     if (v.kind == V_TIE) tieRound();
     else if (v.kind == V_FOUL) endRound(v.who == 0 ? 2 : 1, true, v.us);  // yang curang kalah ronde

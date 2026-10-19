@@ -2,6 +2,7 @@
 #include <Adafruit_SSD1306.h>
 #include "buttons.h"
 #include <Wire.h>
+#include "debuglog.h"
 
 extern Adafruit_SSD1306 display;
 
@@ -33,7 +34,6 @@ uint32_t oled_applyClock(uint32_t hz) {
   OledClock::set(display, hz);
   Wire.setClock(hz);
   oledHz = hz;
-  Serial.printf("[OLED] I2C %u kHz\n", (unsigned)(hz / 1000));
   return hz;
 }
 
@@ -80,7 +80,7 @@ bool oled_reinit() {
   OledClock::set(display, oledHz);
   Wire.setClock(oledHz);
   nReinits++;
-  Serial.printf("[OLED] re-init %s\n", ok ? "ok" : "gagal");
+  dlog("OLED re-init %s", ok ? "ok" : "gagal");
   return ok;
 }
 

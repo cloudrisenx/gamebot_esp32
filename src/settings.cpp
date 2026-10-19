@@ -60,7 +60,6 @@ void settings_begin() {
     prefs.putBool("nightOn", nightOn);
     prefs.putUShort("nightStart", nightStart);
     prefs.putUShort("nightEnd", nightEnd);
-    Serial.printf("[POWER] migrasi jadwal malam lama (indeks %u)\n", legacy);
   }
   if (nightStart == nightEnd) nightOn = false;
   contrastIdx = prefs.getUChar("con", 1) % CONTRAST_OPT_COUNT;
@@ -71,7 +70,6 @@ void settings_begin() {
   } else {
     if (prefs.isKey("hitLv5")) lv5Ms = LEGACY_LV5_MS[prefs.getUChar("hitLv5", 2) % 4];
     prefs.putUShort("hitLv5ms", lv5Ms);
-    Serial.printf("[HITUNG] migrasi waktu Lv5 -> %u ms\n", lv5Ms);
   }
   hitungLv5Idx = 2;
   for (uint8_t i = 0; i < HITUNG_LV5_OPT_COUNT; i++)
@@ -143,7 +141,6 @@ bool settings_setNight(bool on, uint16_t startMin, uint16_t endMin) {
   prefs.putUShort("nightEnd", nightEnd);
   char buf[12];
   settings_nightLabel(buf, sizeof(buf));
-  Serial.printf("[POWER] jadwal malam=%s\n", buf);
   return true;
 }
 

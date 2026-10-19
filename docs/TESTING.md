@@ -88,6 +88,39 @@ git switch main
 Then upload the old animation `backup/v1.9.19/frames.bin` through the OTA page (Animasi tab); the old frames area
 (0x310000) was overwritten if the light sleep firmware was ever OTA'd into app1. Settings & pairing are kept (NVS did not move).
 
+## 6. Pet (v0.9.38)
+
+| # | Step | Expected result |
+|---|---|---|
+| 1 | Home → tap R once | Pet opens after ±0.3 s; smooth animation, loop not stuck |
+| 2 | Home → hold R ±0.6 s / tap R 3x fast | Animation / Music opens (not Pet) |
+| 3 | In Pet: tap L, tap R, tap OK, OK 3x fast | glance left, glance right, happy + hearts, tickled |
+| 4 | Hold L / hold R / hold OK | feeding (fish, chewing, full) / face morphs smoothly into the 8-bit cat chasing the mouse / purr + kneading |
+| 5 | Leave Pet alone for a few minutes | random cat activities (walk, tail chase, stretch, scratch, hide & peek, zoomies), boredom, sleep (max 3 min) |
+| 6 | No button for 5 minutes | the screen then dims/turns off as usual; Pet freezes |
+| 7 | Screen off → press a button | screen on, Pet continues where it was (no jump); stays on again for 5 minutes |
+| 8 | WhatsApp arrives while in Pet | pop-up as usual; after it closes the cat looks surprised |
+| 9 | BACK in Pet | back to Home |
+
+PC tests (no watch needed): `tools/pet_host_test.cpp` (behaviour) and `tools/pet_parity.py` (pixel-exact vs the
+simulation `tools/pet_sim.py`); commands in [PET.md](PET.md).
+
+## 7. Camera, iPhone notifications, Debug log (v0.9.39)
+
+Logs are on the watch: **Settings → Debug log** (last 10 lines, newest at the bottom; OK = clear). There is no Serial
+output any more.
+
+| # | Step | Expected result |
+|---|---|---|
+| 1 | Android: forget "cute_device Remote", open Phone → Camera, pair | log `CAM sambung`, `CAM auth ok`; screen shows ready |
+| 2 | Android: the phone disconnects/reconnects by itself (or Bluetooth off → on) | log `CAM putus ..`, then `CAM sambung` again without leaving Camera |
+| 3 | Camera open, OK (timer OFF) | the phone's camera takes a photo |
+| 4 | Exit Camera → open it again → OK | still snaps (no new pairing) |
+| 5 | iPhone: Forget This Device + Settings → Forget phones; pair, tap **Allow** | log `ANCS tak ada 1/12` may appear first, then `ANCS aktif (ke-N)` |
+| 6 | Send a WhatsApp to the iPhone (screen locked) | pop-up on the watch |
+| 7 | Settings → Clock → sync with phone, then another WhatsApp | pop-up still arrives |
+| 8 | Debug log screen: L/R, OK, BACK | scroll / clear ("No log yet") / back |
+
 ## Rebuilding (developer notes)
 
 Quick way: `tools\flash_lightsleep.ps1` (does the steps below). Manual: PowerShell (not Git Bash), a path without

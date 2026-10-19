@@ -158,15 +158,12 @@ bool frames_begin() {
     // Decode seluruh animasi sekali: tabel offset & setiap frame terbukti utuh sebelum dipakai
     for (uint16_t i = 0; i < header.count; i++) {
       if (!decodeFrame(i)) {
-        Serial.printf("[ANIM] frames.bin FRM2 rusak di frame %u\n", i);
         unmap();
         return false;
       }
       if (i % 64 == 0) power_feed();
     }
     bufIndex = header.count - 1;
-    Serial.printf("[ANIM] FRM2 %u frame, %u B (rasio %.1fx)\n", header.count, len,
-                  (float)(sizeof(FramesHeader) + (uint32_t)header.count * FRAME_BYTES) / len);
   }
   valid = true;
   return true;

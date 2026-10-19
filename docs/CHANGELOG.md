@@ -1,6 +1,6 @@
 # Changelog & Test Checklist
 
-Current firmware version: **v0.9.37** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
+Current firmware version: **v0.9.39** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
 Serial log lines are quoted exactly as the firmware prints them (in Indonesian).
 
 ---
@@ -216,6 +216,34 @@ Version numbering restarts at 0.9.x because the watch is still a prototype.
       connect-disconnect-reconnect while setting up HID no longer resets Bluetooth / restarts the watch.
 - [ ] Test iPhone: connect/disconnect repeatedly → no `Task WDT`; notification → `[iOS] ANCS aktif`, `[iOS] notif app=...`.
 - [ ] Test Android Camera: forget "cute_device Remote", pair again, OK snaps; Serial has no `reset BLE otomatis`.
+
+---
+
+## 8. v0.9.38: Pet (a cat that lives on the screen) + new right-button mapping on Home
+
+- [x] New **Pet** screen (`src/pet.cpp`, engine `src/pet_core.cpp`), ported from the approved simulation
+      `tools/pet_sim.py`; PC tests: behaviour test passes, pixel parity 0/4390 frames different, pose table identical.
+- [x] Home, right button: **tap = Pet**, **hold = Animation** (was Music), **tap 3x = Music**. A single tap waits ±0.3 s
+      (to tell it apart from 3 taps). Legend icon: cat face instead of ▶.
+- [x] In Pet: tap L/R = glance, tap OK = happy (3x = tickled, 6x = runs away annoyed); hold L = feed, hold R = play
+      (smooth morph into the 8-bit cat), hold OK = stroke. Alone: random cat activities, sleep max 3 minutes. BACK = Home.
+- [x] Power: the screen stays on for 5 minutes after the last button in Pet, then the normal screen-off rule; the pet
+      freezes while the screen is off or a pop-up/call is shown, and never holds off light sleep.
+- [ ] Test on the watch (OTA `firmware\lightsleep\firmware.bin`): the 9 steps in [TESTING.md](TESTING.md) section 6.
+
+---
+
+## 9. v0.9.39: Camera reconnects on Android, iPhone ANCS retry, Debug log instead of Serial
+
+- [x] Camera remote: the watch advertises again after the phone disconnects (NimBLE's default was "no"), so Android's
+      connect-disconnect-reconnect while setting up HID no longer leaves the watch invisible.
+- [x] iPhone: ANCS is searched again every 5 s (max 12x) when it is missing or the subscribe fails (iOS publishes it
+      only after "Share System Notifications" is allowed), and again when the iPhone sends *Service Changed*.
+- [x] iPhone: "sync with phone" (reading the time) no longer throws away the ANCS/AMS connection objects
+      (`getClient()` was called again, which deletes the service list).
+- [x] New **Settings → Debug log**: the last 10 lines (seconds since boot + short text), L/R scroll, OK clear, BACK exit.
+      All Serial monitor output was removed from the firmware; important events go to the Debug log.
+- [ ] Test on the watch: [TESTING.md](TESTING.md) section 7.
 
 ---
 

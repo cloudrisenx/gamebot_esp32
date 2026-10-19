@@ -31,7 +31,6 @@ static void writeNvs(const char *why) {
   p.end();
   lastSavedEpoch = now;
   lastSaveMs = millis();
-  Serial.printf("[JAM] simpan (%s): epoch %lu, sumber %s\n", why, (unsigned long)now, clock_sourceName());
 }
 
 void clock_begin() {
@@ -50,15 +49,11 @@ void clock_begin() {
   if (valid(now)) {
     // Jam sistem masih berjalan (bangun dari deep sleep / reset software): sumber tetap seperti tersimpan
     source = src == CLK_NONE ? CLK_ESTIMATE : (ClockSource)src;
-    Serial.printf("[JAM] boot: jam sistem masih valid (epoch %lu), sumber %s\n", (unsigned long)now, clock_sourceName());
   } else if (valid(saved)) {
     ble_setClock(saved);
     source = CLK_ESTIMATE;
-    Serial.printf("[JAM] boot: jam hilang, pakai tersimpan epoch %lu (PERKIRAAN, tertinggal sejak mati)\n",
-                  (unsigned long)saved);
   } else {
     source = CLK_NONE;
-    Serial.println("[JAM] boot: belum ada jam tersimpan, tunggu sinkron / setel manual");
   }
 }
 
@@ -70,7 +65,6 @@ void clock_loop() {
     bool write = before != CLK_SYNC || !valid(lastSavedEpoch) || lastSync < lastSavedEpoch ||
                  lastSync - lastSavedEpoch >= SYNC_MIN_GAP_S;
     if (write) pendingSaveAtMs = millis() + SYNC_SAVE_DELAY_MS;  // tunda, lihat SYNC_SAVE_DELAY_MS
-    else Serial.println("[JAM] sinkron HP (NVS tidak ditulis: < 15 mnt sejak simpan terakhir)");
   }
   if (pendingSaveAtMs && (int32_t)(millis() - pendingSaveAtMs) >= 0) {
     pendingSaveAtMs = 0;
