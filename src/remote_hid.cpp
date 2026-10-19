@@ -179,7 +179,9 @@ class RemoteCallbacks : public NimBLEServerCallbacks {
     rejectedFull = false;
   }
   void onDisconnect(NimBLEServer *, NimBLEConnInfo &info, int reason) override {
-    bool wasReady = connected;  // sempat terenkripsi sebelum putus = percobaan pairing yang gagal
+    // Terenkripsi tapi bond tidak tersimpan = pairing gagal. Sudah ter-bond = putus biasa (Android sering
+    // connect-putus-connect lagi saat memasang HID, atau HP tidur): jangan reset/restart jam
+    bool wasReady = connected && !info.isBonded();
     connected = false;
     Serial.printf("[REMOTE] disconnect %s reason=%d\n", info.getIdAddress().toString().c_str(), reason);
     if (wasReady && running && !bondError && !rejectedFull) {

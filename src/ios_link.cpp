@@ -1,5 +1,6 @@
 #include "ios_link.h"
 #include <NimBLEDevice.h>
+#include <esp_task_wdt.h>
 #include "ble_link.h"
 #include "power.h"
 #include "settings.h"
@@ -172,6 +173,7 @@ static void onNotificationSource(NimBLERemoteCharacteristic *, uint8_t *d, size_
   nsQueue[(nsHead + nsCount) % NS_QUEUE] = e;
   nsCount++;
   portEXIT_CRITICAL(&iosMux);
+  power_loopWake();  // proses segera walau layar mati (sama dengan jalur Chronos)
 }
 
 static void onDataSource(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) {
@@ -180,6 +182,7 @@ static void onDataSource(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, boo
   memcpy(dsBuf + dsLen, d, n);
   dsLen += n;
   portEXIT_CRITICAL(&iosMux);
+  power_loopWake();
 }
 
 static void onEntityUpdate(NimBLERemoteCharacteristic *, uint8_t *d, size_t n, bool) {
@@ -244,12 +247,19 @@ class IosServerCallbacks : public NimBLEServerCallbacks {
 };
 static IosServerCallbacks serverCallbacks;
 
+// Operasi GATT client NimBLE menunggu jawaban iPhone tanpa batas (sampai timeout ATT 30 dtk / putus).
+// iPhone bisa diam lama (dialog izin notifikasi, sambung-putus beruntun) -> loop macet > TWDT 8 dtk -> reset.
+// Selama operasi itu loop dikeluarkan dari pengawasan TWDT; batas atasnya tetap timeout ATT 30 dtk.
+struct WdtPause {
+  WdtPause() { esp_task_wdt_delete(NULL); }
+  ~WdtPause() { esp_task_wdt_add(NULL); }
+};
+
 // =====================================================================================
 // Setup GATT client di koneksi yang sama (dijalankan di loop utama, blocking singkat)
 // =====================================================================================
 static NimBLERemoteCharacteristic *findChar(NimBLEClient *c, const NimBLEUUID &svc, const NimBLEUUID &chr) {
   NimBLERemoteService *s = c->getService(svc);
-  power_feed();
   return s ? s->getCharacteristic(chr) : nullptr;
 }
 
@@ -277,6 +287,7 @@ bool ios_updateConnParams(uint16_t minItv, uint16_t maxItv, uint16_t latency, ui
 
 bool ios_readTime() {
   if (!ios_connected()) return false;
+  WdtPause wp;
   NimBLEClient *c = server->getClient(connHandle);
   if (!c) return false;
   NimBLERemoteCharacteristic *ct = findChar(c, NimBLEUUID(CTS_SERVICE), NimBLEUUID(CTS_CURRENT_TIME));
@@ -287,6 +298,7 @@ bool ios_readTime() {
 }
 
 static void setupGatt() {
+  WdtPause wp;
   NimBLEClient *c = server->getClient(connHandle);
   if (!c) { Serial.println("[iOS] getClient gagal"); return; }
   Serial.println("[iOS] terenkripsi, mencari layanan iPhone...");
@@ -306,7 +318,6 @@ static void setupGatt() {
   }
 
   NimBLERemoteService *ancs = c->getService(ANCS_SERVICE);
-  power_feed();
   if (ancs) {
     NimBLERemoteCharacteristic *ns = ancs->getCharacteristic(ANCS_NOTIFICATION_SOURCE);
     NimBLERemoteCharacteristic *ds = ancs->getCharacteristic(ANCS_DATA_SOURCE);
@@ -317,10 +328,8 @@ static void setupGatt() {
   } else {
     Serial.println("[iOS] ANCS tidak ditemukan (izinkan 'Bagikan Notifikasi Sistem' di iPhone)");
   }
-  power_feed();
 
   NimBLERemoteService *ams = c->getService(AMS_SERVICE);
-  power_feed();
   if (ams) {
     amsCommand = ams->getCharacteristic(AMS_REMOTE_COMMAND);
     NimBLERemoteCharacteristic *eu = ams->getCharacteristic(AMS_ENTITY_UPDATE);
@@ -374,6 +383,7 @@ static void sendNextAttrRequest() {
                          ANCS_ATTR_APP_ID,
                          ANCS_ATTR_TITLE, (uint8_t)ANCS_TITLE_MAX, (uint8_t)(ANCS_TITLE_MAX >> 8),
                          ANCS_ATTR_MESSAGE, (uint8_t)ANCS_MESSAGE_MAX, (uint8_t)(ANCS_MESSAGE_MAX >> 8)};
+  WdtPause wp;
   if (ancsControl->writeValue(cmd, sizeof(cmd), true)) {
     reqOutstanding = uid;
     reqSentAt = millis();
@@ -576,6 +586,7 @@ void ios_musicControl(Control cmd) {
     case VOLUME_DOWN:    id = AMS_CMD_VOLUME_DOWN; break;
     default: return;
   }
+  WdtPause wp;
   amsCommand->writeValue(&id, 1, true);
 }
 
@@ -584,6 +595,7 @@ void ios_callAction(bool accept) {
   uint32_t uid = callUid;
   const uint8_t cmd[] = {ANCS_CMD_PERFORM_ACTION, (uint8_t)uid, (uint8_t)(uid >> 8), (uint8_t)(uid >> 16),
                          (uint8_t)(uid >> 24), accept ? ANCS_ACTION_POSITIVE : ANCS_ACTION_NEGATIVE};
+  WdtPause wp;
   ancsControl->writeValue(cmd, sizeof(cmd), true);
 }
 

@@ -1,6 +1,6 @@
 # Changelog & Test Checklist
 
-Current firmware version: **v1.9.28** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
+Current firmware version: **v0.9.37** (`src/version.h`). Updates reach the device over **OTA** (or USB, see [BUILD.md](BUILD.md)).
 Serial log lines are quoted exactly as the firmware prints them (in Indonesian).
 
 ---
@@ -202,6 +202,20 @@ After the rename (note in the tests):
 - [x] Light sleep is held off while an iPhone is connected but not ready yet (pairing + service discovery).
 - [x] If pairing/setup does not finish within 60 s, the watch disconnects so the iPhone can retry.
 - [ ] Test on the iPhone 13: Forget phones on the watch, Forget This Device on the iPhone, pair with the screen off.
+
+---
+
+## 7. v0.9.37: no WDT reset on iPhone reconnects, Camera works on Android
+
+Version numbering restarts at 0.9.x because the watch is still a prototype.
+
+- [x] iPhone: blocking GATT calls (service discovery, ANCS subscribe, reads/writes) no longer trip the 8 s Task WDT
+      when the iPhone is slow or reconnects again and again (the ATT timeout of 30 s is the upper bound).
+- [x] iPhone: ANCS notifications wake the main loop right away (same as the Chronos path).
+- [x] Camera remote: a disconnect after a *successful* bond no longer counts as a failed pairing, so Android's
+      connect-disconnect-reconnect while setting up HID no longer resets Bluetooth / restarts the watch.
+- [ ] Test iPhone: connect/disconnect repeatedly → no `Task WDT`; notification → `[iOS] ANCS aktif`, `[iOS] notif app=...`.
+- [ ] Test Android Camera: forget "cute_device Remote", pair again, OK snaps; Serial has no `reset BLE otomatis`.
 
 ---
 
